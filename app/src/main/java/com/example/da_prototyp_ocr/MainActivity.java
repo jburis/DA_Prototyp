@@ -6,6 +6,7 @@ import android.content.pm.PackageManager;
 import android.media.Image;
 import android.os.Bundle;
 import android.widget.Button;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -32,10 +33,15 @@ public class MainActivity extends AppCompatActivity {
     private ExecutorService cameraExecutor;
     private ImageAnalysis analysis;
 
+    private TextView textResult;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        textResult = findViewById(R.id.textResult);
+
 
         previewView = findViewById(R.id.previewView);
         scanBtn = findViewById(R.id.scanBtn);
@@ -99,10 +105,15 @@ public class MainActivity extends AppCompatActivity {
 
     private void handleResult(Text visionText) {
         String full = visionText.getText();
-        //String maybeName = NameExtractor.from(full); // optional – sonst full anzeigen
-        //String msg = (maybeName != null) ? "Name: " + maybeName : "Text:\n" + full;
-        runOnUiThread(() -> Toast.makeText(this, full, Toast.LENGTH_LONG).show());
+        runOnUiThread(() -> {
+            if (full.trim().isEmpty()) {
+                textResult.setText("Kein Text erkannt.");
+            } else {
+                textResult.setText(full);
+            }
+        });
     }
+
 
     @Override
     public void onRequestPermissionsResult(int code, @NonNull String[] p, @NonNull int[] r) {

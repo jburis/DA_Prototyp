@@ -9,9 +9,25 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@+id/scanBtn"
+        app:layout_constraintBottom_toTopOf="@+id/textResult"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
+
+    <!-- 🆕 Textfeld für OCR-Ergebnis -->
+    <TextView
+        android:id="@+id/textResult"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:padding="12dp"
+        android:text="Noch kein Text erkannt"
+        android:textSize="16sp"
+        android:background="#1A000000"
+        android:textColor="@android:color/black"
+        android:scrollbars="vertical"
+        android:gravity="center_horizontal"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/scanBtn"/>
 
     <Button
         android:id="@+id/scanBtn"
