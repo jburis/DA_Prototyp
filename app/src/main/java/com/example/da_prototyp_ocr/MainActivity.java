@@ -105,14 +105,24 @@ public class MainActivity extends AppCompatActivity {
 
     private void handleResult(Text visionText) {
         String full = visionText.getText();
+        String order = NameExtractor.extractOrder(full);   // 🆕
+        String name  = NameExtractor.extractName(full);    // 🆕
+
         runOnUiThread(() -> {
-            if (full.trim().isEmpty()) {
+            if (order != null || name != null) {
+                StringBuilder sb = new StringBuilder();
+                if (order != null) sb.append("Bestellnummer: ").append(order).append("\n");
+                if (name  != null) sb.append("Name: ").append(name);
+                sb.append("\n\n(Voller OCR-Text unten)\n").append(full);
+                textResult.setText(sb.toString());
+            } else if (full.trim().isEmpty()) {
                 textResult.setText("Kein Text erkannt.");
             } else {
                 textResult.setText(full);
             }
         });
     }
+
 
 
     @Override
