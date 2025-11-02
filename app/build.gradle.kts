@@ -1,3 +1,4 @@
+
 plugins {
     alias(libs.plugins.android.application)
 }
@@ -31,7 +32,19 @@ android {
     }
 }
 
+
+val camerax_version = "1.3.4"
+
 dependencies {
+    // CameraX
+    implementation("androidx.camera:camera-core:$camerax_version")
+    implementation("androidx.camera:camera-camera2:$camerax_version")
+    implementation("androidx.camera:camera-lifecycle:$camerax_version")
+    implementation("androidx.camera:camera-view:$camerax_version")
+
+    // ML Kit Text Recognition
+    implementation("com.google.mlkit:text-recognition:16.0.0")
+
 
     implementation(libs.appcompat)
     implementation(libs.material)

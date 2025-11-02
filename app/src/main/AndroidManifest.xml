@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Kamera wird genutzt, ist aber NICHT zwingend erforderlich -->
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+    <!-- optional, wenn Autofokus nice-to-have ist -->
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
 
     <application
         android:allowBackup="true"
