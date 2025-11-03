@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#FAF9FB"
+    android:gravity="center_horizontal">
+
+    <!-- Logozeile oben -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="start|center_vertical"
+        android:paddingTop="32dp"
+        android:paddingStart="20dp"
+        android:paddingBottom="24dp">
+
+        <ImageView
+            android:id="@+id/logo"
+            android:layout_width="160dp"
+            android:layout_height="48dp"
+            android:src="@drawable/kwp_bild"
+            android:contentDescription="Logo" />
+        <!-- Optional: Platz für weiteres Branding -->
+    </LinearLayout>
+
+    <!-- Hauptinhalt -->
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="60dp" />
+
+    <TextView
+        android:id="@+id/dateText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Donnerstag,"
+        android:textSize="28sp"
+        android:textColor="#222"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="4dp"/>
+
+    <TextView
+        android:id="@+id/timeText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="27.03.2025 - 12:25:40"
+        android:textSize="20sp"
+        android:textColor="#222"
+        android:gravity="center"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="4dp"/>
+
+    <TextView
+        android:id="@+id/greetingText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Guten Tag!"
+        android:textSize="26sp"
+        android:textStyle="bold"
+        android:textColor="#222"
+        android:gravity="center"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="20dp" />
+
+    <Button
+        android:id="@+id/btn_list"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Teilnehmerliste auswählen"
+        android:backgroundTint="#39B54A"
+        android:textColor="#fff"
+        android:textSize="18sp"
+        android:layout_gravity="center_horizontal"/>
+
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottom_navigation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#F94A19"
+        app:menu="@menu/bottom_nav_menu" />
+
+
+</LinearLayout>

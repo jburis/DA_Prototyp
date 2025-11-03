@@ -8,7 +8,6 @@
     <!-- optional, wenn Autofokus nice-to-have ist -->
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
-
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -18,15 +17,26 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.DA_Prototyp_OCR">
+
+        <!-- Deine neue Start-Activity -->
         <activity
-            android:name=".MainActivity"
+            android:name=".StartActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-    </application>
 
+        <!-- Die neue Activity für Listen-Auswahl -->
+        <activity
+            android:name=".SelectListActivity"
+            android:exported="true" />
+
+        <!-- Die alte MainActivity ist weiter vorhanden, aber ohne intent-filter -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true" />
+
+    </application>
 </manifest>
