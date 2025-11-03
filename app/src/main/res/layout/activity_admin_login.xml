@@ -1,23 +1,60 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical" android:layout_width="match_parent" android:layout_height="match_parent"
-    android:padding="24dp">
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center_horizontal"
+    android:background="#FCFAFD"
+    android:padding="32dp">
+
+    <TextView
+        android:id="@+id/login_ueberschrift"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Admin-Bereich"
+        android:textColor="#111"
+        android:textStyle="bold"
+        android:textSize="28sp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="12dp"/>
+
+    <TextView
+        android:id="@+id/login_subheadline"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Melden Sie sich an"
+        android:textColor="#222"
+        android:textStyle="bold"
+        android:textSize="20sp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="28dp"/>
 
     <EditText
         android:id="@+id/et_user"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Admin" />
+        android:hint="Admin"
+        android:textColorHint="#BBB"
+        android:background="#FFF"
+        android:layout_marginBottom="14dp"/>
 
     <EditText
         android:id="@+id/et_pass"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:hint="Passwort"
+        android:textColorHint="#BBB"
+        android:background="#FFF"
         android:inputType="textPassword"
-        android:hint="Passwort" />
+        android:layout_marginBottom="20dp"/>
 
     <Button
         android:id="@+id/btn_login"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Anmelden" />
+        android:text="Anmelden"
+        android:textStyle="bold"
+        android:backgroundTint="#6C4BA6"
+        android:textColor="#FFF"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="12dp"/>
 </LinearLayout>

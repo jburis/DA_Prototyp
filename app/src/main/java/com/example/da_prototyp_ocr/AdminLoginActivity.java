@@ -1,5 +1,6 @@
 package com.example.da_prototyp_ocr;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
@@ -17,11 +18,13 @@ public class AdminLoginActivity extends AppCompatActivity {
         Button btnLogin = findViewById(R.id.btn_login);
 
         btnLogin.setOnClickListener(v -> {
-            String user = etUser.getText().toString();
-            String pass = etPass.getText().toString();
+            String user = etUser.getText().toString().trim();
+            String pass = etPass.getText().toString().trim();
             if (user.equals("Admin") && pass.equals("admin")) {
                 Toast.makeText(this, "Login erfolgreich!", Toast.LENGTH_SHORT).show();
-                // TODO: Admin-Dashboard öffnen
+                Intent intent = new Intent(AdminLoginActivity.this, AdminAreaActivity.class);
+                startActivity(intent);
+                finish();
             } else {
                 Toast.makeText(this, "Falsche Daten!", Toast.LENGTH_SHORT).show();
             }
