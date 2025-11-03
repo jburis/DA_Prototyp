@@ -19,7 +19,7 @@ public class AdminLoginActivity extends AppCompatActivity {
         btnLogin.setOnClickListener(v -> {
             String user = etUser.getText().toString();
             String pass = etPass.getText().toString();
-            if (user.equals("Admin") && pass.equals("deinPasswort")) {
+            if (user.equals("Admin") && pass.equals("admin")) {
                 Toast.makeText(this, "Login erfolgreich!", Toast.LENGTH_SHORT).show();
                 // TODO: Admin-Dashboard öffnen
             } else {

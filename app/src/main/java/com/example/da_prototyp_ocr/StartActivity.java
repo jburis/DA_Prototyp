@@ -6,6 +6,8 @@ import android.os.Handler;
 import android.widget.Button;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
+import com.google.android.material.bottomnavigation.BottomNavigationView; // Import für BottomNavigationView
+
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -40,6 +42,18 @@ public class StartActivity extends AppCompatActivity {
         btnList.setOnClickListener(v -> {
             Intent intent = new Intent(StartActivity.this, SelectListActivity.class);
             startActivity(intent);
+        });
+
+        // BottomNavigationView Integration für Admin-Login
+        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        bottomNav.setOnItemSelectedListener(item -> {
+            if (item.getItemId() == R.id.nav_admin) {
+                Intent intent = new Intent(StartActivity.this, AdminLoginActivity.class);
+                startActivity(intent);
+                return true;
+            }
+            // Optional: weitere Tabs (Home, Personen, ...)
+            return false;
         });
     }
 
