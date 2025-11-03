@@ -18,7 +18,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.DA_Prototyp_OCR">
 
-        <!-- Deine neue Start-Activity -->
+
         <activity
             android:name=".StartActivity"
             android:exported="true">
@@ -28,17 +28,17 @@
             </intent-filter>
         </activity>
 
-        <!-- Die neue Activity für Listen-Auswahl -->
+
         <activity
             android:name=".SelectListActivity"
             android:exported="true" />
 
-        <!-- Die alte MainActivity ist weiter vorhanden, aber ohne intent-filter -->
+
         <activity
             android:name=".MainActivity"
             android:exported="true" />
 
-        <!-- Die neue Admin-Login-Activity -->
+
         <activity
             android:name=".AdminLoginActivity"
             android:exported="true" />
