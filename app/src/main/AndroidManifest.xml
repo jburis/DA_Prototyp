@@ -38,5 +38,10 @@
             android:name=".MainActivity"
             android:exported="true" />
 
+        <!-- Die neue Admin-Login-Activity -->
+        <activity
+            android:name=".AdminLoginActivity"
+            android:exported="true" />
+
     </application>
 </manifest>
