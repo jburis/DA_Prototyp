@@ -18,7 +18,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.DA_Prototyp_OCR">
 
-
         <activity
             android:name=".StartActivity"
             android:exported="true">
@@ -28,19 +27,21 @@
             </intent-filter>
         </activity>
 
-
         <activity
             android:name=".SelectListActivity"
             android:exported="true" />
-
 
         <activity
             android:name=".MainActivity"
             android:exported="true" />
 
-
         <activity
             android:name=".AdminLoginActivity"
+            android:exported="true" />
+
+        <!-- Ergänzung: Admin-Bereich -->
+        <activity
+            android:name=".AdminAreaActivity"
             android:exported="true" />
 
     </application>
