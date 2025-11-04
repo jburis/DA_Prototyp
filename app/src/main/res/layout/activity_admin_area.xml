@@ -1,0 +1,47 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Admin-Bereich"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="16dp"/>
+
+    <ListView
+        android:id="@+id/lv_teilnehmer"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:divider="#D32F2F"
+        android:dividerHeight="1dp"
+        android:layout_marginBottom="16dp"/>
+
+    <EditText
+        android:id="@+id/et_neuer_teilnehmer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Neuer Teilnehmer"
+        android:layout_marginBottom="12dp"/>
+
+    <Button
+        android:id="@+id/btn_add"
+        android:text="Hinzufügen"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:backgroundTint="#4CAF50"
+        android:textColor="#FFF"
+        android:layout_marginBottom="8dp"/>
+
+    <Button
+        android:id="@+id/btn_logout"
+        android:text="Abmelden"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:backgroundTint="#F44336"
+        android:textColor="#FFF"/>
+</LinearLayout>

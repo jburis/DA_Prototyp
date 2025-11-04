@@ -1,4 +1,3 @@
-
 plugins {
     alias(libs.plugins.android.application)
 }
@@ -32,7 +31,6 @@ android {
     }
 }
 
-
 val camerax_version = "1.3.4"
 
 dependencies {
@@ -45,6 +43,8 @@ dependencies {
     // ML Kit Text Recognition
     implementation("com.google.mlkit:text-recognition:16.0.0")
 
+    // QR-Code-Scanner (ML Kit Barcode Scanning)
+    implementation("com.google.mlkit:barcode-scanning:17.2.0")
 
     implementation(libs.appcompat)
     implementation(libs.material)
