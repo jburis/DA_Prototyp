@@ -31,6 +31,14 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import android.util.Log;
+import android.widget.Toast;import androidx.annotation.NonNull;
+import java.util.List;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
+
 public class MainActivity extends AppCompatActivity {
     private static final int REQ_CAMERA = 100;
     private PreviewView previewView;
@@ -68,6 +76,7 @@ public class MainActivity extends AppCompatActivity {
             scanQrMode = true;
             analyzeOnce();
         });
+        testApiConnection();
     }
 
     private void startCamera() {
@@ -169,4 +178,131 @@ public class MainActivity extends AppCompatActivity {
         super.onRequestPermissionsResult(code, p, r);
         if (code == REQ_CAMERA && r.length > 0 && r[0] == PackageManager.PERMISSION_GRANTED) startCamera();
     }
+
+// ... innerhalb Ihrer Activity-Klasse (z.B. StartActivity)
+
+    /**
+     * Eine Testmethode, um die API-Verbindung zu überprüfen.
+     * Sie versucht, die Liste aller Teilnehmer vom Server abzurufen.
+     */
+    private void testApiConnection() {
+        // 1. ApiService-Instanz über den ApiClient erstellen
+        ApiService apiService = ApiClient.getClient().create(ApiService.class);
+
+        // 2. API-Aufruf vorbereiten (getAttendees mit leerem Query-String, um alle zu bekommen)
+        Call<List<Attendee>> call = apiService.getAttendees(null);
+
+        // Loggen der Anfrage-URL zur Fehlersuche
+        Log.d("APITEST", "Sende API-Anfrage an: " + call.request().url());
+
+        // 3. Den Aufruf asynchron ausführen (damit die App nicht einfriert)
+        call.enqueue(new Callback<List<Attendee>>() {
+            @Override
+            public void onResponse(@NonNull Call<List<Attendee>> call, @NonNull Response<List<Attendee>> response) {
+                // Diese Methode wird immer aufgerufen, wenn der Server antwortet.
+
+                // Wichtig: UI-Updates müssen auf dem Haupt-Thread laufen
+                runOnUiThread(() -> {
+                    if (response.isSuccessful()) {
+                        // HTTP-Status 2xx (Erfolg)
+                        List<Attendee> attendees = response.body();
+                        if (attendees != null) {
+                            String message = "API-Test ERFOLGREICH: " + attendees.size() + " Teilnehmer empfangen.";
+                            Toast.makeText(getApplicationContext(), message, Toast.LENGTH_LONG).show();
+                            Log.i("APITEST", message);
+
+                            // Optional: Den ersten Teilnehmer loggen, falls vorhanden
+                            if (!attendees.isEmpty()) {
+                                Log.i("APITEST", "Erster Teilnehmer: " + attendees.get(0).getParticipant());
+                            }
+
+                        }
+                    } else {
+                        // HTTP-Fehler (z.B. 404 Not Found, 500 Server Error)
+                        String errorMessage = "API-Test FEHLGESCHLAGEN: Server antwortete mit Fehlercode " + response.code();
+                        Toast.makeText(getApplicationContext(), errorMessage, Toast.LENGTH_LONG).show();
+                        Log.e("APITEST", errorMessage);
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<List<Attendee>> call, @NonNull Throwable t) {
+                // Diese Methode wird bei einem Netzwerkfehler aufgerufen
+                // (z.B. keine Verbindung, falsche IP, Server offline).
+
+                runOnUiThread(() -> {
+                    String failureMessage = "API-Test FEHLGESCHLAGEN: Netzwerkfehler.";
+                    Toast.makeText(getApplicationContext(), failureMessage, Toast.LENGTH_LONG).show();
+                    Log.e("APITEST", "Netzwerkfehler: " + t.getMessage(), t);
+                });
+            }
+        });
+    }
+
+
+    /**
+     * Führt einen Check-in für eine gegebene Bestellnummer über die API durch.
+     * @param orderNumber Die zu checkende Bestellnummer.
+     */
+    private void performCheckIn(String orderNumber) {
+        if (orderNumber == null || orderNumber.trim().isEmpty()) {
+            Toast.makeText(this, "Keine Bestellnummer für Check-in gefunden", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Log.d("APICHECKIN", "Starte Check-in für Bestellnummer: " + orderNumber);
+
+        // 1. ApiService-Instanz holen
+        ApiService apiService = ApiClient.getClient().create(ApiService.class);
+
+        // 2. Request-Body erstellen (wir checken standardmäßig eine Person ein)
+        CheckInRequest checkInRequest = new CheckInRequest(1);
+
+        // 3. API-Aufruf vorbereiten
+        Call<Attendee> call = apiService.checkIn(orderNumber, checkInRequest);
+
+        // 4. Aufruf asynchron ausführen
+        call.enqueue(new Callback<Attendee>() {
+            @Override
+            public void onResponse(@NonNull Call<Attendee> call, @NonNull Response<Attendee> response) {
+                runOnUiThread(() -> {
+                    if (response.isSuccessful() && response.body() != null) {
+                        // ERFOLG: Der Server hat mit 2xx geantwortet und einen Teilnehmer zurückgegeben
+                        Attendee checkedInAttendee = response.body();
+                        String successMessage = "Check-in für " + checkedInAttendee.getParticipant() + " erfolgreich!";
+                        Log.i("APICHECKIN", successMessage + " (Neue Anzahl: " + checkedInAttendee.getCheckedInCount() + ")");
+                        Toast.makeText(MainActivity.this, successMessage, Toast.LENGTH_LONG).show();
+
+                        // UI aktualisieren mit der Erfolgsmeldung
+                        textResult.setText(successMessage + "\nEingecheckt: " + checkedInAttendee.getCheckedInCount() + "/" + checkedInAttendee.getGuestCount());
+
+                    } else {
+                        // FEHLER: Der Server hat einen Fehlercode gesendet (z.B. 404 Not Found)
+                        String errorMessage;
+                        if (response.code() == 404) {
+                            errorMessage = "Fehler: Bestellnummer '" + orderNumber + "' nicht gefunden.";
+                        } else {
+                            errorMessage = "API-Fehler beim Check-in. Code: " + response.code();
+                        }
+                        Log.e("APICHECKIN", errorMessage);
+                        Toast.makeText(MainActivity.this, errorMessage, Toast.LENGTH_LONG).show();
+                        textResult.setText(errorMessage);
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<Attendee> call, @NonNull Throwable t) {
+                // FEHLER: Netzwerkproblem
+                runOnUiThread(() -> {
+                    String failureMessage = "Netzwerkfehler: " + t.getMessage();
+                    Log.e("APICHECKIN", failureMessage, t);
+                    Toast.makeText(MainActivity.this, failureMessage, Toast.LENGTH_LONG).show();
+                    textResult.setText("Check-in fehlgeschlagen.\nBitte Netzwerkverbindung prüfen.");
+                });
+            }
+        });
+    }
+
 }

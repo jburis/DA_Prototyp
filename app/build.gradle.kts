@@ -34,6 +34,14 @@ android {
 val camerax_version = "1.3.4"
 
 dependencies {
+
+    // Retrofit für Netzwerkanfragen
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+
+// Gson-Converter, um JSON automatisch in Java/Kotlin-Objekte umzuwandeln
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+
     // CameraX
     implementation("androidx.camera:camera-core:$camerax_version")
     implementation("androidx.camera:camera-camera2:$camerax_version")
