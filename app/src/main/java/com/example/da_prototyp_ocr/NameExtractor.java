@@ -7,9 +7,9 @@ import java.util.regex.Pattern;
 
 public final class NameExtractor {
 
-    // 🔢 Bestellnummern-Pattern: trifft "Bestellung #122609", "Bestellnr: 122609", "#122609", ...
+    // 🔢 Bestellnummern-Pattern: NEUE VERSION, extrahiert das Hashtag mit.
     private static final Pattern ORDER_PATTERN = Pattern.compile(
-            "(?i)(?:bestell(?:ung|nr|nummer)\\s*[:#]?\\s*|#)\\s*(\\d{5,})"
+            "(?i)(?:bestell(?:ung|nr|nummer)\\s*[:#]?\\s*)?(#\\d{5,})"
     );
 
     // 👤 Name (gemischt geschrieben)

@@ -131,47 +131,55 @@ public class MainActivity extends AppCompatActivity {
 
     private void handleResult(Text visionText) {
         String full = visionText.getText();
+        // Wir extrahieren die Bestellnummer
         String order = NameExtractor.extractOrder(full);
-        String name  = NameExtractor.extractName(full);
 
-        runOnUiThread(() -> {
-            if (order != null || name != null) {
-                StringBuilder sb = new StringBuilder();
-                if (order != null) sb.append("Bestellnummer: ").append(order).append("\n");
-                if (name  != null) sb.append("Name: ").append(name);
-                sb.append("\n\n(Voller OCR-Text unten)\n").append(full);
-                textResult.setText(sb.toString());
-            } else if (full.trim().isEmpty()) {
-                textResult.setText("Kein Text erkannt.");
-            } else {
-                textResult.setText(full);
-            }
-        });
+        if (order != null) {
+            // Wenn eine Bestellnummer gefunden wurde, starten wir den Check-in
+            performCheckIn(order);
+        } else {
+            // Wenn keine Bestellnummer gefunden wurde, zeigen wir nur den erkannten Text an
+            runOnUiThread(() -> {
+                textResult.setText("Keine Bestellnummer erkannt.\n\n" + full);
+                Toast.makeText(this, "Keine Bestellnummer im Text gefunden.", Toast.LENGTH_SHORT).show();
+            });
+        }
     }
 
     @SuppressLint("UnsafeOptInUsageError")
     private void runQrScan(ImageProxy imageProxy) {
-        Image mediaImage = imageProxy.getImage();
-        if (mediaImage == null) { imageProxy.close(); return; }
+        Image img = imageProxy.getImage();
+        if (img == null) {
+            imageProxy.close();
+            return;
+        }
 
-        InputImage img = InputImage.fromMediaImage(mediaImage, imageProxy.getImageInfo().getRotationDegrees());
-        BarcodeScannerOptions options = new BarcodeScannerOptions.Builder()
-                .setBarcodeFormats(com.google.mlkit.vision.barcode.common.Barcode.FORMAT_QR_CODE)
-                .build();
-        BarcodeScanner scanner = BarcodeScanning.getClient(options);
+        InputImage inputImage = InputImage.fromMediaImage(img, imageProxy.getImageInfo().getRotationDegrees());
+        BarcodeScanner scanner = BarcodeScanning.getClient();
 
-        scanner.process(img)
+        scanner.process(inputImage)
                 .addOnSuccessListener(barcodes -> {
-                    if (barcodes.isEmpty()) {
-                        runOnUiThread(() -> textResult.setText("Kein QR-Code erkannt."));
+                    if (!barcodes.isEmpty()) {
+                        // Wir nehmen den ersten erkannten Barcode
+                        String qrCodeValue = barcodes.get(0).getRawValue();
+                        Log.d("QRSCAN", "QR-Code erkannt: " + qrCodeValue);
+
+                        // Wir gehen davon aus, dass der QR-Code die Bestellnummer enthält,
+                        // und starten den Check-in-Prozess.
+                        if (qrCodeValue != null) {
+                            performCheckIn(qrCodeValue);
+                        }
+
                     } else {
-                        String qr = barcodes.get(0).getRawValue();
-                        runOnUiThread(() -> textResult.setText("QR erkannt: " + qr));
+                        Log.d("QRSCAN", "Kein QR-Code im Bild gefunden.");
+                        runOnUiThread(() -> Toast.makeText(this, "Kein QR-Code erkannt", Toast.LENGTH_SHORT).show());
                     }
                 })
-                .addOnFailureListener(e -> runOnUiThread(() -> textResult.setText("QR-Scan Fehler: " + e.getMessage())))
-                .addOnCompleteListener(t -> imageProxy.close());
+                .addOnFailureListener(e -> Log.e("QRSCAN", "QR-Code-Analyse fehlgeschlagen", e))
+                // KORREKTUR: Verwende addOnCompleteListener, um das Bild immer freizugeben.
+                .addOnCompleteListener(task -> imageProxy.close());
     }
+
 
     @Override
     public void onRequestPermissionsResult(int code, @NonNull String[] p, @NonNull int[] r) {
