@@ -39,4 +39,11 @@ public interface ApiService {
      */
     @POST("api/uncheck/{order}")
     Call<Attendee> unCheck(@Path("order") String orderNumber, @Body CheckInRequest checkInRequest);
+
+    /**
+     * Checkt einen Teilnehmer anhand seines Namens ein.
+     * @param attendee Das Teilnehmer-Objekt, das mindestens den Namen enthalten muss.
+     */
+    @POST("api/checkin-by-name")
+    Call<Attendee> checkInByName(@Body Attendee attendee);
 }

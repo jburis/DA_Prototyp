@@ -76,6 +76,41 @@ public final class NameExtractor {
         // Sonst: erster guter Treffer
         return candidates.get(0);
     }
+    /**
+     * Extrahiert den Namen speziell aus einem QR-Code mit Strichpunkt-Format.
+     * Nimmt an, dass der Vorname das 4. und der Nachname das 5. Element ist.
+     * Ist gegen Abstürze und Formatfehler abgesichert.
+     *
+     * @param fullText Der gesamte Text aus dem QR-Code, z.B. "201806618;W;;Christine;FUHRMANN"
+     * @return Der zusammengesetzte Name (z.B. "Christine FUHRMANN") oder null.
+     */
+    public static String extractQRName(String fullText) {
+        if (fullText == null || fullText.trim().isEmpty()) {
+            return null;
+        }
+
+        // NEUE LOGIK: Wir trennen den String am Strichpunkt (;)
+        String[] parts = fullText.split(";");
+
+        // Sicherheitsprüfung: Stellen Sie sicher, dass das Array groß genug ist.
+        // Array-Indizes sind 0-basiert, also brauchen wir für den Zugriff auf Index 4 eine Länge von mindestens 5.
+        if (parts.length >= 5) {
+            // Greife sicher auf das vierte (parts[3]) und fünfte (parts[4]) Element zu.
+            String firstName = parts[3].trim();
+            String lastName = parts[4].trim();
+
+            // Zusätzliche Prüfung, falls die Felder leer sind (wie beim zweiten Element 'W;;C...')
+            if (firstName.isEmpty() || lastName.isEmpty()) {
+                return null;
+            }
+
+            return firstName + " " + lastName;
+        } else {
+            // Wenn der QR-Code nicht das erwartete Format hat, geben wir null zurück.
+            return null;
+        }
+    }
+
 
     // ---------- kleine Helfer ----------
 

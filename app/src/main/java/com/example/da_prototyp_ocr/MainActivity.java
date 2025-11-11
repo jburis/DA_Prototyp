@@ -129,26 +129,35 @@ public class MainActivity extends AppCompatActivity {
                 .addOnCompleteListener(t -> imageProxy.close());
     }
 
+    // In MainActivity.java
+
     private void handleResult(Text visionText) {
         String full = visionText.getText();
-        // Wir extrahieren die Bestellnummer
+
+        // 1. Versuche, die Bestellnummer zu extrahieren
         String order = NameExtractor.extractOrder(full);
 
         if (order != null) {
-            // Wenn eine Bestellnummer gefunden wurde, starten wir den Check-in
+            // PRIORITÄT 1: Wenn eine Bestellnummer gefunden wurde, Check-in per Nummer.
             performCheckIn(order);
         } else {
-            // Wenn keine Bestellnummer gefunden wurde, zeigen wir nur den erkannten Text an
-            runOnUiThread(() -> {
-                textResult.setText("Keine Bestellnummer erkannt.\n\n" + full);
-                Toast.makeText(this, "Keine Bestellnummer im Text gefunden.", Toast.LENGTH_SHORT).show();
-            });
+            // PRIORITÄT 2: Wenn keine Nummer da ist, versuche, einen Namen zu extrahieren.
+            String name = NameExtractor.extractName(full);
+            if (name != null) {
+                performCheckInByName(name);
+            } else {
+                // FALLBACK: Nichts gefunden, zeige nur den erkannten Text.
+                runOnUiThread(() -> {
+                    textResult.setText("Keine Bestellnummer oder Name erkannt.\n\n" + full);
+                    Toast.makeText(this, "Keine relevanten Daten im Text gefunden.", Toast.LENGTH_SHORT).show();
+                });
+            }
         }
     }
 
+
     @SuppressLint("UnsafeOptInUsageError")
-    private void runQrScan(ImageProxy imageProxy) {
-        Image img = imageProxy.getImage();
+    private void runQrScan(ImageProxy imageProxy) {Image img = imageProxy.getImage();
         if (img == null) {
             imageProxy.close();
             return;
@@ -160,14 +169,24 @@ public class MainActivity extends AppCompatActivity {
         scanner.process(inputImage)
                 .addOnSuccessListener(barcodes -> {
                     if (!barcodes.isEmpty()) {
-                        // Wir nehmen den ersten erkannten Barcode
                         String qrCodeValue = barcodes.get(0).getRawValue();
-                        Log.d("QRSCAN", "QR-Code erkannt: " + qrCodeValue);
+                        Log.d("QRSCAN", "QR-Code Rohdaten: " + qrCodeValue);
 
-                        // Wir gehen davon aus, dass der QR-Code die Bestellnummer enthält,
-                        // und starten den Check-in-Prozess.
-                        if (qrCodeValue != null) {
-                            performCheckIn(qrCodeValue);
+                        // HIER DIE ÄNDERUNG: Wir rufen die neue, simple Methode auf.
+                        String participantName = NameExtractor.extractQRName(qrCodeValue);
+
+                        if (participantName != null) {
+                            // Name wurde erfolgreich extrahiert, führe Check-in per Name durch.
+                            Log.d("QRSCAN", "Extrahierter Teilnehmer aus QR-Code: " + participantName);
+                            performCheckInByName(participantName);
+                        } else {
+                            // FALLBACK: Wenn der QR-Code nicht dem erwarteten Format entspricht.
+                            runOnUiThread(() -> {
+                                String feedback = "QR-Code hat nicht das erwartete Format (mind. 4 Zeilen).";
+                                if(qrCodeValue != null) feedback += "\nInhalt: " + qrCodeValue;
+                                textResult.setText(feedback);
+                                Toast.makeText(this, "QR-Code hat falsches Format.", Toast.LENGTH_LONG).show();
+                            });
                         }
 
                     } else {
@@ -176,7 +195,6 @@ public class MainActivity extends AppCompatActivity {
                     }
                 })
                 .addOnFailureListener(e -> Log.e("QRSCAN", "QR-Code-Analyse fehlgeschlagen", e))
-                // KORREKTUR: Verwende addOnCompleteListener, um das Bild immer freizugeben.
                 .addOnCompleteListener(task -> imageProxy.close());
     }
 
@@ -290,6 +308,71 @@ public class MainActivity extends AppCompatActivity {
                         String errorMessage;
                         if (response.code() == 404) {
                             errorMessage = "Fehler: Bestellnummer '" + orderNumber + "' nicht gefunden.";
+                        } else {
+                            errorMessage = "API-Fehler beim Check-in. Code: " + response.code();
+                        }
+                        Log.e("APICHECKIN", errorMessage);
+                        Toast.makeText(MainActivity.this, errorMessage, Toast.LENGTH_LONG).show();
+                        textResult.setText(errorMessage);
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<Attendee> call, @NonNull Throwable t) {
+                // FEHLER: Netzwerkproblem
+                runOnUiThread(() -> {
+                    String failureMessage = "Netzwerkfehler: " + t.getMessage();
+                    Log.e("APICHECKIN", failureMessage, t);
+                    Toast.makeText(MainActivity.this, failureMessage, Toast.LENGTH_LONG).show();
+                    textResult.setText("Check-in fehlgeschlagen.\nBitte Netzwerkverbindung prüfen.");
+                });
+            }
+        });
+    }
+
+
+    // In MainActivity.java
+
+    /**
+     * Führt einen Check-in für einen gegebenen Teilnehmernamen über die API durch.
+     * @param participantName Der Name des Teilnehmers, der eingecheckt werden soll.
+     */
+    private void performCheckInByName(String participantName) {
+        if (participantName == null || participantName.trim().isEmpty()) {
+            Toast.makeText(this, "Kein Name für Check-in gefunden", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Log.d("APICHECKIN", "Starte Check-in für Teilnehmer: " + participantName);
+
+        // 1. ApiService-Instanz holen
+        ApiService apiService = ApiClient.getClient().create(ApiService.class);
+
+        // 2. Request-Body erstellen: Ein Attendee-Objekt, das nur den Namen enthält.
+        // Die anderen Felder (orderNumber, guestCount etc.) sind null und werden von Gson ignoriert.
+        Attendee requestBody = new Attendee(participantName, null, 0, null);
+
+        // 3. API-Aufruf vorbereiten
+        Call<Attendee> call = apiService.checkInByName(requestBody);
+
+        // 4. Aufruf asynchron ausführen (die Callback-Logik ist identisch zu performCheckIn)
+        call.enqueue(new Callback<Attendee>() {
+            @Override
+            public void onResponse(@NonNull Call<Attendee> call, @NonNull Response<Attendee> response) {
+                runOnUiThread(() -> {
+                    if (response.isSuccessful() && response.body() != null) {
+                        // ERFOLG
+                        Attendee checkedInAttendee = response.body();
+                        String successMessage = "Check-in für " + checkedInAttendee.getParticipant() + " erfolgreich!";
+                        Log.i("APICHECKIN", successMessage + " (Neue Anzahl: " + checkedInAttendee.getCheckedInCount() + ")");
+                        Toast.makeText(MainActivity.this, successMessage, Toast.LENGTH_LONG).show();
+                        textResult.setText(successMessage + "\nEingecheckt: " + checkedInAttendee.getCheckedInCount() + "/" + checkedInAttendee.getGuestCount());
+                    } else {
+                        // FEHLER
+                        String errorMessage;
+                        if (response.code() == 404) {
+                            errorMessage = "Fehler: Teilnehmer '" + participantName + "' nicht gefunden.";
                         } else {
                             errorMessage = "API-Fehler beim Check-in. Code: " + response.code();
                         }
