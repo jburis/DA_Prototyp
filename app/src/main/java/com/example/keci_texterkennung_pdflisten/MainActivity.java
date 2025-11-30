@@ -179,40 +179,63 @@ public class MainActivity extends AppCompatActivity {
                 continue;
             }
 
+            // --- Bestellnummer, Plätze, Kontakt aus der Zeile mit '#' ---
             String orderNumber = "#" + m.group(1);
             int seats = Integer.parseInt(m.group(2));
             String contact = m.group(3);
 
-            // Mögliche Telefonnummer in der nächsten Zeile anhängen
+            // Telefonnummer evtl. aus der nächsten Zeile anhängen
             if (i + 1 < lines.size()) {
-                String next = lines.get(i + 1);
+                String next = lines.get(i + 1).trim();
                 if (next.matches(".*\\d.*") && !next.contains("@")) {
                     contact = contact + ", " + next;
                 }
             }
 
-            // Name nach oben suchen, "Abfahrtsstelle..." überspringen
-            String nameLine = "";
-            int j = i - 1;
-            while (j >= 0) {
-                String cand = lines.get(j);
-                String lc = cand.toLowerCase();
+            // --- Name suchen ---
 
-                if (lc.startsWith("abfahrtsstelle ausflug")) {
-                    j--;
-                    continue;
+            String nameLine = null;
+
+            // 1) Versuch: Name in DERSELBEN Zeile vor dem '#'
+            int hashIndex = line.indexOf('#');
+            if (hashIndex > 0) {
+                String prefix = line.substring(0, hashIndex).trim(); // alles vor "#"
+                if (isLikelyName(prefix)) {
+                    nameLine = prefix;
                 }
-                if (lc.startsWith("teilnehmer ") || lc.startsWith("teilnehmerliste")) {
-                    break;
-                }
-                nameLine = cand;
-                break;
             }
 
-            if (nameLine.isEmpty()) {
+            // 2) Fallback: nach oben wandern, bis eine Zeile wie ein Name aussieht
+            if (nameLine == null) {
+                int j = i - 1;
+                while (j >= 0) {
+                    String cand = lines.get(j).trim();
+                    String lc = cand.toLowerCase();
+
+                    // Dinge überspringen, die sicher kein Name sind
+                    if (lc.startsWith("abfahrtsstelle ausflug")) {
+                        j--;
+                        continue;
+                    }
+                    if (lc.startsWith("teilnehmer") || lc.startsWith("teilnehmerliste")) {
+                        break;
+                    }
+
+                    if (isLikelyName(cand)) {
+                        nameLine = cand;
+                        break;
+                    }
+
+                    j--;
+                }
+            }
+
+            // Wenn wir keinen brauchbaren Namen gefunden haben, diesen Eintrag überspringen
+            if (nameLine == null || nameLine.isEmpty()) {
                 continue;
             }
 
+            // Nachname + Vorname aus der Namenszeile schneiden
             String[] nameParts = nameLine.split("\\s+", 2);
             String lastName = nameParts[0];
             String firstName = (nameParts.length > 1) ? nameParts[1] : "";
@@ -227,6 +250,7 @@ public class MainActivity extends AppCompatActivity {
             participants.add(p);
         }
 
+
         // 4) Ausgabe zusammenbauen (nur ein paar Beispiele)
         StringBuilder sb = new StringBuilder();
         sb.append("PDF Seiten: ").append(pdfPageCount).append("\n");
@@ -234,9 +258,14 @@ public class MainActivity extends AppCompatActivity {
         sb.append("Ort: ").append(eventLocation).append("\n");
         sb.append("Titel: ").append(eventTitle).append("\n\n");
 
+
+        sb.append("Erkannte Teilnehmer gesamt: ")
+                .append(participants.size())
+                .append("\n\n");
+
         sb.append("Beispiel-Teilnehmer:\n");
 
-        int max = Math.min(participants.size(), 5); // nur die ersten paar anzeigen
+        int max = participants.size(); // nur die ersten paar anzeigen
         for (int i = 0; i < max; i++) {
             Participant p = participants.get(i);
             sb.append("- ").append(p.lastName).append(", ").append(p.firstName).append("\n");
@@ -284,4 +313,52 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
     }
+    /**
+     * Prüft grob, ob eine Zeile wie ein Personenname aussieht.
+     */
+    private boolean isLikelyName(String cand) {
+        if (cand == null) return false;
+        String trimmed = cand.trim();
+        if (trimmed.isEmpty()) return false;
+
+        String lc = trimmed.toLowerCase();
+
+        // Dinge ausschließen, die sicher kein Name sind
+        if (trimmed.contains("@") || trimmed.contains("#") || trimmed.contains("/") || trimmed.contains(",")) {
+            return false;
+        }
+        // keine Ziffern im Namen
+        if (trimmed.matches(".*\\d.*")) {
+            return false;
+        }
+
+        // Schlagwörter, die auf Haus/Klub/Organisation hindeuten
+        String[] bannedWords = {
+                "haus", "klub", "klubs", "pensionisten", "pensionistinnen",
+                "stadt", "wien", "kwp", "gruppe", "team"
+        };
+        for (String b : bannedWords) {
+            if (lc.contains(b)) {
+                return false;
+            }
+        }
+
+        // Anzahl Wörter: typischerweise 2–4
+        String[] tokens = trimmed.split("\\s+");
+        if (tokens.length < 2 || tokens.length > 4) {
+            return false;
+        }
+
+        // die ersten 1–2 Wörter sollten mit Großbuchstaben beginnen
+        for (int i = 0; i < Math.min(2, tokens.length); i++) {
+            if (tokens[i].isEmpty()) continue;
+            char c0 = tokens[i].charAt(0);
+            if (!Character.isUpperCase(c0)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
 }
