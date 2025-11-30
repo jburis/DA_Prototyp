@@ -80,6 +80,11 @@ public class MainActivity extends AppCompatActivity {
             }
 
             PdfRenderer renderer = new PdfRenderer(pfd);
+            int targetPage = 0;
+            if (renderer.getPageCount() > 1) {
+                targetPage = 1; // Test: zweite Seite (Index 1)
+            }
+            PdfRenderer.Page page = renderer.openPage(targetPage);
             if (renderer.getPageCount() == 0) {
                 tvResult.setText("PDF hat keine Seiten.");
                 renderer.close();
@@ -87,7 +92,6 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            PdfRenderer.Page page = renderer.openPage(0);
 
             Bitmap bitmap = Bitmap.createBitmap(
                     page.getWidth(),
@@ -121,7 +125,9 @@ public class MainActivity extends AppCompatActivity {
                 .addOnSuccessListener(new OnSuccessListener<Text>() {
                     @Override
                     public void onSuccess(Text text) {
-                        tvResult.setText(text.getText());
+                        String raw = text.getText();
+                        String info = "Zeichen gesamt: " + raw.length() + "\n\n" + raw;
+                        tvResult.setText(info);
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
