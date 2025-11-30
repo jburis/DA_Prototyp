@@ -43,4 +43,6 @@ dependencies {
 
     // ML Kit Text Recognition (on-device, gebundelte Variante)
     implementation("com.google.mlkit:text-recognition:16.0.1")
+
+    implementation("com.tom-roush:pdfbox-android:2.0.27.0")
 }
