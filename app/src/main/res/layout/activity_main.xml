@@ -27,13 +27,56 @@
         android:gravity="center_horizontal"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@+id/scanBtn"/>
+        app:layout_constraintBottom_toTopOf="@+id/confirmationLayout"/>
+
+    <!-- NEU: HINZUGEFÜGTER BLOCK FÜR DIE CHECK-IN BESTÄTIGUNG -->
+    <LinearLayout
+        android:id="@+id/confirmationLayout"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:padding="16dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="8dp"
+        android:background="#E0E0E0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/scanBtn">
+
+        <TextView
+            android:id="@+id/attendeeNameText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@android:color/black"
+            android:text="Teilnehmer: Max Mustermann"/>
+
+        <TextView
+            android:id="@+id/attendeeSeatsText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="16sp"
+            android:textColor="@android:color/black"
+            android:text="Plätze: 2 / Eingecheckt: 0"/>
+
+        <Button
+            android:id="@+id/confirmCheckInBtn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Check-in Bestätigen"/>
+
+    </LinearLayout>
+    <!-- ENDE DES NEUEN BLOCKS -->
 
     <Button
         android:id="@+id/scanBtn"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="Einmal scannen"
+        android:text="Buchungsnummer scannen"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="12dp"
@@ -45,7 +88,7 @@
         android:id="@+id/btn_qr"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="Mit QR-Code fortsetzen"
+        android:text="QR-Code scannen"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="32dp"

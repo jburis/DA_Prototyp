@@ -50,5 +50,7 @@
             android:name=".AdminAreaActivity"
             android:exported="true" />
 
+        <activity android:name=".PdfImportActivity" />
+
     </application>
 </manifest>
