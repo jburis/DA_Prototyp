@@ -48,6 +48,9 @@ public class MainActivity extends AppCompatActivity {
     // NEU: Merkt sich, wie viele Seiten das PDF hat
     private int pdfPageCount = -1;
 
+    // NEU: JSON-Ausgabe als Variable speichern (zum Weitergeben an Activity/API/etc.)
+    private String bookingsJson = "";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -195,7 +198,6 @@ public class MainActivity extends AppCompatActivity {
             }
 
             // --- Name suchen ---
-
             String nameLine = null;
 
             // 1) Versuch: Name in DERSELBEN Zeile vor dem '#'
@@ -252,8 +254,11 @@ public class MainActivity extends AppCompatActivity {
             participants.add(p);
         }
 
-// --- JSON aller Teilnehmer ins Log schreiben (für Kontrolle) ---
-        android.util.Log.d("JSON_TEST", toJson(participants));
+        // NEU: JSON einmal erzeugen und als Variable speichern (für Weitergabe)
+        bookingsJson = toJson(participants);
+
+        // optional: Logcat zum Kontrollieren
+        android.util.Log.d("KWP_JSON", bookingsJson);
 
         // 4) Ausgabe zusammenbauen (nur ein paar Beispiele)
         StringBuilder sb = new StringBuilder();
@@ -262,14 +267,13 @@ public class MainActivity extends AppCompatActivity {
         sb.append("Ort: ").append(eventLocation).append("\n");
         sb.append("Titel: ").append(eventTitle).append("\n\n");
 
-
         sb.append("Erkannte Teilnehmer gesamt: ")
                 .append(participants.size())
                 .append("\n\n");
 
         sb.append("Beispiel-Teilnehmer:\n");
 
-        int max = participants.size(); // nur die ersten paar anzeigen
+        int max = participants.size();
         for (int i = 0; i < max; i++) {
             Participant p = participants.get(i);
             sb.append("- ").append(p.lastName).append(", ").append(p.firstName).append("\n");
@@ -282,9 +286,18 @@ public class MainActivity extends AppCompatActivity {
             sb.append("(Keine Teilnehmer erkannt – Parser muss ggf. angepasst werden)\n");
         }
 
+        // optional: JSON am Ende in der UI anzeigen (nur Debug)
+        // sb.append("\n--- JSON ---\n").append(bookingsJson);
+
         return sb.toString();
     }
 
+    /**
+     * Optionaler Getter, falls du den JSON später (z.B. Button-Klick) brauchst.
+     */
+    public String getBookingsJson() {
+        return bookingsJson;
+    }
 
     /**
      * Übergibt das gerenderte PDF-Bitmap an ML Kit und zeigt den erkannten Text im TextView an.
@@ -317,6 +330,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
     }
+
     /**
      * Prüft grob, ob eine Zeile wie ein Personenname aussieht.
      */
@@ -367,24 +381,37 @@ public class MainActivity extends AppCompatActivity {
 
     private String toJson(List<Participant> participants) {
         StringBuilder sb = new StringBuilder();
-        sb.append("[\n");
+
+        sb.append("{\n");
+        sb.append("  \"buchungen\": [\n");
 
         for (int i = 0; i < participants.size(); i++) {
             Participant p = participants.get(i);
 
-            sb.append("  {\n");
-            sb.append("    \"lastName\": \"").append(p.lastName).append("\",\n");
-            sb.append("    \"firstName\": \"").append(p.firstName).append("\",\n");
-            sb.append("    \"orderNumber\": \"").append(p.orderNumber).append("\",\n");
-            sb.append("    \"seats\": ").append(p.seats).append(",\n");
-            sb.append("    \"contact\": \"").append(p.contact).append("\"\n");
-            sb.append("  }");
+            sb.append("    {\n");
+            sb.append("      \"bestellnummer\": \"").append(p.orderNumber).append("\",\n");
+            sb.append("      \"vorname\": \"").append(escapeJson(p.firstName)).append("\",\n");
+            sb.append("      \"nachname\": \"").append(escapeJson(p.lastName)).append("\",\n");
+            sb.append("      \"kontakt\": \"").append(escapeJson(p.contact)).append("\",\n");
+            sb.append("      \"anzahl_plaetze\": ").append(p.seats).append("\n");
+            sb.append("    }");
 
             if (i < participants.size() - 1) sb.append(",");
             sb.append("\n");
         }
 
-        sb.append("]");
+        sb.append("  ]\n");
+        sb.append("}\n");
+
         return sb.toString();
+    }
+
+    private String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
     }
 }
