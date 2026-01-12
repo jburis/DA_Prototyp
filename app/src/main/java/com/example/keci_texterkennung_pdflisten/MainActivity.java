@@ -1,5 +1,7 @@
 package com.example.keci_texterkennung_pdflisten;
 
+import static androidx.core.app.ActivityCompat.startActivityForResult;
+
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -250,6 +252,8 @@ public class MainActivity extends AppCompatActivity {
             participants.add(p);
         }
 
+// --- JSON aller Teilnehmer ins Log schreiben (für Kontrolle) ---
+        android.util.Log.d("JSON_TEST", toJson(participants));
 
         // 4) Ausgabe zusammenbauen (nur ein paar Beispiele)
         StringBuilder sb = new StringBuilder();
@@ -361,4 +365,26 @@ public class MainActivity extends AppCompatActivity {
         return true;
     }
 
+    private String toJson(List<Participant> participants) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("[\n");
+
+        for (int i = 0; i < participants.size(); i++) {
+            Participant p = participants.get(i);
+
+            sb.append("  {\n");
+            sb.append("    \"lastName\": \"").append(p.lastName).append("\",\n");
+            sb.append("    \"firstName\": \"").append(p.firstName).append("\",\n");
+            sb.append("    \"orderNumber\": \"").append(p.orderNumber).append("\",\n");
+            sb.append("    \"seats\": ").append(p.seats).append(",\n");
+            sb.append("    \"contact\": \"").append(p.contact).append("\"\n");
+            sb.append("  }");
+
+            if (i < participants.size() - 1) sb.append(",");
+            sb.append("\n");
+        }
+
+        sb.append("]");
+        return sb.toString();
+    }
 }
