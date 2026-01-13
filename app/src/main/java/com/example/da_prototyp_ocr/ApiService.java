@@ -72,4 +72,29 @@ public interface ApiService {
             @Path("veranstaltung_id") int veranstaltungId,
             @Body ImportBuchungenRequest body
     );
+
+
+    // 1) Buchungen (Teilnehmerliste) einer Veranstaltung laden
+    @GET("api/buchungen/veranstaltung/{veranstaltung_id}")
+    Call<List<Buchung>> getBuchungenByVeranstaltung(@Path("veranstaltung_id") int veranstaltungId);
+
+    // 2) Anwesenheiten einer Veranstaltung laden (für checked-in Summen)
+    @GET("api/anwesenheiten/veranstaltung/{veranstaltung_id}")
+    Call<List<Anwesenheit>> getAnwesenheitenByVeranstaltung(@Path("veranstaltung_id") int veranstaltungId);
+
+    // 3) Check-in per Bestellnummer (Admin)
+    @POST("api/anwesenheiten/veranstaltung/{veranstaltung_id}/checkin/bestellnummer")
+    Call<Anwesenheit> checkInByBestellnummer(
+            @Header("x-admin-token") String adminToken,
+            @Path("veranstaltung_id") int veranstaltungId,
+            @Body CheckinByBestellnummerRequest body
+    );
+
+    // 4) Check-in per Name (Admin) -> Response ist { hinweis, result }
+    @POST("api/anwesenheiten/veranstaltung/{veranstaltung_id}/checkin/name")
+    Call<CheckinByNameResponse> checkInByName(
+            @Header("x-admin-token") String adminToken,
+            @Path("veranstaltung_id") int veranstaltungId,
+            @Body CheckinByNameRequest body
+    );
 }

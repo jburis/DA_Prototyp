@@ -51,7 +51,15 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout confirmationLayout;
     private TextView attendeeNameText, attendeeSeatsText;
     private Button confirmCheckInBtn;
-    private List<Attendee> allAttendees = new ArrayList<>();
+    // statt List<Attendee>
+    private List<Buchung> allBuchungen = new ArrayList<>();
+    private Buchung currentScannedBuchung;
+
+    // Die aktuell ausgewählte Veranstaltung (Liste)
+    private int veranstaltungId = -1;
+
+    // Admin Token (muss dem .env entsprechen)
+    private static final String ADMIN_TOKEN = "supersecret-token";
     private Attendee currentScannedAttendee;
 
     @Override
@@ -73,6 +81,12 @@ public class MainActivity extends AppCompatActivity {
 
         confirmationLayout.setVisibility(View.GONE);
 
+        veranstaltungId = getIntent().getIntExtra("VERANSTALTUNG_ID", -1);
+        if (veranstaltungId == -1) {
+            Toast.makeText(this, "Fehler: Keine veranstaltung_id übergeben.", Toast.LENGTH_LONG).show();
+        }
+
+
         // Kamera-Berechtigung
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -84,8 +98,7 @@ public class MainActivity extends AppCompatActivity {
         // --- KORRIGIERTE CLICK-LISTENER ---
         scanBtn.setOnClickListener(v -> {
             confirmationLayout.setVisibility(View.GONE);
-            // Lade die Liste VOR dem Scan und starte den Scan danach
-            loadAllAttendees(() -> {
+            loadBuchungenAndAnwesenheiten(() -> {
                 scanQrMode = false;
                 analyzeOnce();
             });
@@ -93,18 +106,18 @@ public class MainActivity extends AppCompatActivity {
 
         qrBtn.setOnClickListener(v -> {
             confirmationLayout.setVisibility(View.GONE);
-            // Lade die Liste VOR dem Scan und starte den Scan danach
-            loadAllAttendees(() -> {
+            loadBuchungenAndAnwesenheiten(() -> {
                 scanQrMode = true;
                 analyzeOnce();
             });
         });
 
+
         confirmCheckInBtn.setOnClickListener(v -> {
-            if (currentScannedAttendee != null) {
-                performCheckIn(currentScannedAttendee.getOrderNumber());
+            if (currentScannedBuchung != null) {
+                performCheckInByBestellnummer(currentScannedBuchung.getBestellnummer());
                 confirmationLayout.setVisibility(View.GONE);
-                currentScannedAttendee = null;
+                currentScannedBuchung = null;
             }
         });
     }
@@ -161,7 +174,7 @@ public class MainActivity extends AppCompatActivity {
         String order = NameExtractor.extractOrder(full);
 
         if (order != null) {
-            searchAttendeeLocally(order);
+            searchBuchungLocally(order);
         } else {
             String name = NameExtractor.extractName(full);
             if (name != null) {
@@ -216,129 +229,167 @@ public class MainActivity extends AppCompatActivity {
         if (code == REQ_CAMERA && r.length > 0 && r[0] == PackageManager.PERMISSION_GRANTED) startCamera();
     }
 
-    // --- KORRIGIERT: Lädt Teilnehmer und führt danach eine Aktion aus ---
-    /**
-     * Lädt alle Teilnehmer vom Server und führt danach eine Aktion aus (Callback).
-     * @param onFinished Die Aktion, die nach erfolgreichem Laden ausgeführt werden soll (oder null).
-     */
-    private void loadAllAttendees(Runnable onFinished) {
-        ApiService apiService = ApiClient.getClient().create(ApiService.class);
-        Call<List<Attendee>> call = apiService.getAttendees(null);
-        Log.d("APILOAD", "Lade alle Teilnehmer vom Server...");
-
-        call.enqueue(new Callback<List<Attendee>>() {
-            @Override
-            public void onResponse(@NonNull Call<List<Attendee>> call, @NonNull Response<List<Attendee>> response) {
-                runOnUiThread(() -> {
-                    if (response.isSuccessful() && response.body() != null) {
-                        allAttendees = response.body(); // Liste aktualisieren
-                        if (onFinished != null) {
-                            // Führe die nachfolgende Aktion aus (z.B. den Scan starten)
-                            onFinished.run();
-                        } else {
-                            // Wenn kein Callback da ist (z.B. nach Check-in), nur Toast anzeigen
-                            String message = allAttendees.size() + " Teilnehmer-Daten aktualisiert.";
-                            Toast.makeText(getApplicationContext(), message, Toast.LENGTH_SHORT).show();
-                        }
-                        Log.i("APILOAD", allAttendees.size() + " Teilnehmer geladen.");
-                    } else {
-                        String errorMessage = "Fehler beim Laden der Teilnehmerliste: " + response.code();
-                        Toast.makeText(getApplicationContext(), errorMessage, Toast.LENGTH_LONG).show();
-                        Log.e("APILOAD", errorMessage);
-                    }
-                });
-            }
-
-            @Override
-            public void onFailure(@NonNull Call<List<Attendee>> call, @NonNull Throwable t) {
-                runOnUiThread(() -> {
-                    String failureMessage = "Netzwerkfehler beim Laden der Teilnehmer.";
-                    Toast.makeText(getApplicationContext(), failureMessage, Toast.LENGTH_LONG).show();
-                    Log.e("APILOAD", "Netzwerkfehler: " + t.getMessage(), t);
-                });
-            }
-        });
-    }
-
-    private void searchAttendeeLocally(String orderNumber) {
-        if (orderNumber == null || orderNumber.trim().isEmpty()) {
-            Toast.makeText(this, "Keine Bestellnummer gefunden.", Toast.LENGTH_SHORT).show();
+    private void loadBuchungenAndAnwesenheiten(Runnable onFinished) {
+        if (veranstaltungId == -1) {
+            Toast.makeText(this, "Keine veranstaltung_id gesetzt.", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        Attendee foundAttendee = null;
-        for (Attendee attendee : allAttendees) {
-            if (orderNumber.equals(attendee.getOrderNumber())) {
-                foundAttendee = attendee;
+        ApiService apiService = ApiClient.getClient().create(ApiService.class);
+
+        apiService.getBuchungenByVeranstaltung(veranstaltungId)
+                .enqueue(new retrofit2.Callback<List<Buchung>>() {
+                    @Override
+                    public void onResponse(@androidx.annotation.NonNull retrofit2.Call<List<Buchung>> call,
+                                           @androidx.annotation.NonNull retrofit2.Response<List<Buchung>> response) {
+                        if (!response.isSuccessful() || response.body() == null) {
+                            runOnUiThread(() -> Toast.makeText(MainActivity.this,
+                                    "Fehler beim Laden der Buchungen: " + response.code(),
+                                    Toast.LENGTH_LONG).show());
+                            return;
+                        }
+
+                        List<Buchung> buchungen = response.body();
+
+                        // Jetzt Anwesenheiten laden und pro Buchung_id summieren
+                        apiService.getAnwesenheitenByVeranstaltung(veranstaltungId)
+                                .enqueue(new retrofit2.Callback<List<Anwesenheit>>() {
+                                    @Override
+                                    public void onResponse(@androidx.annotation.NonNull retrofit2.Call<List<Anwesenheit>> call2,
+                                                           @androidx.annotation.NonNull retrofit2.Response<List<Anwesenheit>> response2) {
+                                        runOnUiThread(() -> {
+                                            if (response2.isSuccessful() && response2.body() != null) {
+                                                java.util.HashMap<Integer, Integer> sums = new java.util.HashMap<>();
+                                                for (Anwesenheit a : response2.body()) {
+                                                    int key = a.getBuchungId();
+                                                    int cur = sums.containsKey(key) ? sums.get(key) : 0;
+                                                    sums.put(key, cur + a.getAnzahlEingecheckt());
+                                                }
+                                                for (Buchung b : buchungen) {
+                                                    int checked = sums.containsKey(b.getBuchungId()) ? sums.get(b.getBuchungId()) : 0;
+                                                    b.setCheckedInCount(checked);
+                                                }
+                                            } else {
+                                                // Wenn Anwesenheiten nicht gehen, setzen wir checkedInCount = 0 (keine Logikänderung am Scan)
+                                                for (Buchung b : buchungen) b.setCheckedInCount(0);
+                                            }
+
+                                            allBuchungen = buchungen;
+
+                                            if (onFinished != null) onFinished.run();
+                                            else Toast.makeText(MainActivity.this,
+                                                    allBuchungen.size() + " Buchungen geladen.",
+                                                    Toast.LENGTH_SHORT).show();
+                                        });
+                                    }
+
+                                    @Override
+                                    public void onFailure(@androidx.annotation.NonNull retrofit2.Call<List<Anwesenheit>> call2,
+                                                          @androidx.annotation.NonNull Throwable t) {
+                                        runOnUiThread(() -> {
+                                            for (Buchung b : buchungen) b.setCheckedInCount(0);
+                                            allBuchungen = buchungen;
+                                            if (onFinished != null) onFinished.run();
+                                            Toast.makeText(MainActivity.this,
+                                                    "Anwesenheiten konnten nicht geladen werden (checkedIn=0).",
+                                                    Toast.LENGTH_LONG).show();
+                                        });
+                                    }
+                                });
+                    }
+
+                    @Override
+                    public void onFailure(@androidx.annotation.NonNull retrofit2.Call<List<Buchung>> call,
+                                          @androidx.annotation.NonNull Throwable t) {
+                        runOnUiThread(() -> Toast.makeText(MainActivity.this,
+                                "Netzwerkfehler beim Laden der Buchungen: " + t.getMessage(),
+                                Toast.LENGTH_LONG).show());
+                    }
+                });
+    }
+
+
+    private void searchBuchungLocally(String bestellnummer) {
+        if (bestellnummer == null || bestellnummer.trim().isEmpty()) {
+            Toast.makeText(this, "Keine Bestellnummer gefunden.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (veranstaltungId == -1) {
+            Toast.makeText(this, "Keine veranstaltung_id gesetzt.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Buchung found = null;
+        for (Buchung b : allBuchungen) {
+            if (bestellnummer.equals(b.getBestellnummer())) {
+                found = b;
                 break;
             }
         }
 
-        if (foundAttendee != null) {
-            currentScannedAttendee = foundAttendee;
+        if (found != null) {
+            currentScannedBuchung = found;
 
-            attendeeNameText.setText("Teilnehmer: " + currentScannedAttendee.getParticipant());
-            attendeeSeatsText.setText("Plätze: " + currentScannedAttendee.getGuestCount() +
-                    " / Eingecheckt: " + currentScannedAttendee.getCheckedInCount());
+            attendeeNameText.setText("Teilnehmer: " + currentScannedBuchung.getDisplayName());
+            attendeeSeatsText.setText("Plätze: " + currentScannedBuchung.getAnzahlPlaetze()
+                    + " / Eingecheckt: " + currentScannedBuchung.getCheckedInCount());
 
             confirmationLayout.setVisibility(View.VISIBLE);
             textResult.setText("Bitte bestätigen Sie den Check-in.");
         } else {
-            textResult.setText("Fehler: Bestellnummer '" + orderNumber + "' nicht in der Liste gefunden.");
+            textResult.setText("Fehler: Bestellnummer '" + bestellnummer + "' nicht in der Liste gefunden.");
             confirmationLayout.setVisibility(View.GONE);
         }
     }
 
 
-    private void performCheckIn(String orderNumber) {
-        if (orderNumber == null || orderNumber.trim().isEmpty()) {
+
+    private void performCheckInByBestellnummer(String bestellnummer) {
+        if (bestellnummer == null || bestellnummer.trim().isEmpty()) {
             Toast.makeText(this, "Keine Bestellnummer für Check-in gefunden", Toast.LENGTH_SHORT).show();
             return;
         }
+        if (veranstaltungId == -1) {
+            Toast.makeText(this, "Keine veranstaltung_id gesetzt.", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        Log.d("APICHECKIN", "Starte Check-in für Bestellnummer: " + orderNumber);
         ApiService apiService = ApiClient.getClient().create(ApiService.class);
-        CheckInRequest checkInRequest = new CheckInRequest(1);
-        Call<Attendee> call = apiService.unCheck(orderNumber, checkInRequest);
+        CheckinByBestellnummerRequest body = new CheckinByBestellnummerRequest(bestellnummer, 1);
 
-        call.enqueue(new Callback<Attendee>() {
-            @Override
-            public void onResponse(@NonNull Call<Attendee> call, @NonNull Response<Attendee> response) {
-                runOnUiThread(() -> {
-                    if (response.isSuccessful() && response.body() != null) {
-                        Attendee checkedInAttendee = response.body();
-                        String successMessage = "Check-in für " + checkedInAttendee.getParticipant() + " erfolgreich!";
-                        Log.i("APICHECKIN", successMessage + " (Neue Anzahl: " + checkedInAttendee.getCheckedInCount() + ")");
-                        Toast.makeText(MainActivity.this, successMessage, Toast.LENGTH_LONG).show();
+        apiService.checkInByBestellnummer(ADMIN_TOKEN, veranstaltungId, body)
+                .enqueue(new retrofit2.Callback<Anwesenheit>() {
+                    @Override
+                    public void onResponse(@androidx.annotation.NonNull retrofit2.Call<Anwesenheit> call,
+                                           @androidx.annotation.NonNull retrofit2.Response<Anwesenheit> response) {
+                        runOnUiThread(() -> {
+                            if (response.isSuccessful()) {
+                                String msg = "Check-in für Bestellnummer " + bestellnummer + " erfolgreich!";
+                                Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
+                                textResult.setText(msg);
 
-                        textResult.setText(successMessage + "\nEingecheckt: " + checkedInAttendee.getCheckedInCount() + "/" + checkedInAttendee.getGuestCount());
-                        // Lade die Teilnehmerliste neu, um den `checked_in_count` für zukünftige Scans zu aktualisieren
-                        loadAllAttendees(null); // Aufruf ohne Callback
-                    } else {
-                        String errorMessage;
-                        if (response.code() == 404) {
-                            errorMessage = "Fehler: Bestellnummer '" + orderNumber + "' nicht gefunden.";
-                        } else {
-                            errorMessage = "API-Fehler beim Check-in. Code: " + response.code();
-                        }
-                        Log.e("APICHECKIN", errorMessage);
-                        Toast.makeText(MainActivity.this, errorMessage, Toast.LENGTH_LONG).show();
-                        textResult.setText(errorMessage);
+                                // Refresh: Buchungen + Anwesenheiten neu laden, damit checkedInCount stimmt
+                                loadBuchungenAndAnwesenheiten(null);
+                            } else {
+                                String errorMessage = "API-Fehler beim Check-in. Code: " + response.code();
+                                Toast.makeText(MainActivity.this, errorMessage, Toast.LENGTH_LONG).show();
+                                textResult.setText(errorMessage);
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onFailure(@androidx.annotation.NonNull retrofit2.Call<Anwesenheit> call,
+                                          @androidx.annotation.NonNull Throwable t) {
+                        runOnUiThread(() -> {
+                            String failureMessage = "Netzwerkfehler: " + t.getMessage();
+                            Toast.makeText(MainActivity.this, failureMessage, Toast.LENGTH_LONG).show();
+                            textResult.setText("Check-in fehlgeschlagen.\nBitte Netzwerkverbindung prüfen.");
+                        });
                     }
                 });
-            }
-
-            @Override
-            public void onFailure(@NonNull Call<Attendee> call, @NonNull Throwable t) {
-                runOnUiThread(() -> {
-                    String failureMessage = "Netzwerkfehler: " + t.getMessage();
-                    Log.e("APICHECKIN", failureMessage, t);
-                    Toast.makeText(MainActivity.this, failureMessage, Toast.LENGTH_LONG).show();
-                    textResult.setText("Check-in fehlgeschlagen.\nBitte Netzwerkverbindung prüfen.");
-                });
-            }
-        });
     }
+
 
 
     private void performCheckInByName(String participantName) {
@@ -346,47 +397,57 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Kein Name für Check-in gefunden", Toast.LENGTH_SHORT).show();
             return;
         }
+        if (veranstaltungId == -1) {
+            Toast.makeText(this, "Keine veranstaltung_id gesetzt.", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        Log.d("APICHECKIN", "Starte Check-in für Teilnehmer: " + participantName);
+        // Minimaler Split: letzter Token = Nachname, Rest = Vorname
+        String[] parts = participantName.trim().split("\\s+");
+        if (parts.length < 2) {
+            Toast.makeText(this, "Name nicht vollständig erkannt (Vorname + Nachname).", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String nachname = parts[parts.length - 1];
+        StringBuilder vornameSb = new StringBuilder();
+        for (int i = 0; i < parts.length - 1; i++) {
+            if (i > 0) vornameSb.append(" ");
+            vornameSb.append(parts[i]);
+        }
+        String vorname = vornameSb.toString();
+
         ApiService apiService = ApiClient.getClient().create(ApiService.class);
-        Attendee requestBody = new Attendee(participantName, null, 0, null);
-        Call<Attendee> call = apiService.checkInByName(requestBody);
+        CheckinByNameRequest body = new CheckinByNameRequest(vorname, nachname, 1);
 
-        call.enqueue(new Callback<Attendee>() {
-            @Override
-            public void onResponse(@NonNull Call<Attendee> call, @NonNull Response<Attendee> response) {
-                runOnUiThread(() -> {
-                    if (response.isSuccessful() && response.body() != null) {
-                        Attendee checkedInAttendee = response.body();
-                        String successMessage = "Check-in für " + checkedInAttendee.getParticipant() + " erfolgreich!";
-                        Log.i("APICHECKIN", successMessage + " (Neue Anzahl: " + checkedInAttendee.getCheckedInCount() + ")");
-                        Toast.makeText(MainActivity.this, successMessage, Toast.LENGTH_LONG).show();
-                        textResult.setText(successMessage + "\nEingecheckt: " + checkedInAttendee.getCheckedInCount() + "/" + checkedInAttendee.getGuestCount());
-                        // Lade die Teilnehmerliste neu, um den `checked_in_count` für zukünftige Scans zu aktualisieren
-                        loadAllAttendees(null); // Aufruf ohne Callback
-                    } else {
-                        String errorMessage;
-                        if (response.code() == 404) {
-                            errorMessage = "Fehler: Teilnehmer '" + participantName + "' nicht gefunden.";
-                        } else {
-                            errorMessage = "API-Fehler beim Check-in. Code: " + response.code();
-                        }
-                        Log.e("APICHECKIN", errorMessage);
-                        Toast.makeText(MainActivity.this, errorMessage, Toast.LENGTH_LONG).show();
-                        textResult.setText(errorMessage);
+        apiService.checkInByName(ADMIN_TOKEN, veranstaltungId, body)
+                .enqueue(new retrofit2.Callback<CheckinByNameResponse>() {
+                    @Override
+                    public void onResponse(@androidx.annotation.NonNull retrofit2.Call<CheckinByNameResponse> call,
+                                           @androidx.annotation.NonNull retrofit2.Response<CheckinByNameResponse> response) {
+                        runOnUiThread(() -> {
+                            if (response.isSuccessful()) {
+                                String msg = "Check-in für " + participantName + " erfolgreich!";
+                                Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
+                                textResult.setText(msg);
+
+                                loadBuchungenAndAnwesenheiten(null);
+                            } else {
+                                String errorMessage = "API-Fehler beim Check-in. Code: " + response.code();
+                                Toast.makeText(MainActivity.this, errorMessage, Toast.LENGTH_LONG).show();
+                                textResult.setText(errorMessage);
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onFailure(@androidx.annotation.NonNull retrofit2.Call<CheckinByNameResponse> call,
+                                          @androidx.annotation.NonNull Throwable t) {
+                        runOnUiThread(() -> {
+                            String failureMessage = "Netzwerkfehler: " + t.getMessage();
+                            Toast.makeText(MainActivity.this, failureMessage, Toast.LENGTH_LONG).show();
+                            textResult.setText("Check-in fehlgeschlagen.\nBitte Netzwerkverbindung prüfen.");
+                        });
                     }
                 });
-            }
-
-            @Override
-            public void onFailure(@NonNull Call<Attendee> call, @NonNull Throwable t) {
-                runOnUiThread(() -> {
-                    String failureMessage = "Netzwerkfehler: " + t.getMessage();
-                    Log.e("APICHECKIN", failureMessage, t);
-                    Toast.makeText(MainActivity.this, failureMessage, Toast.LENGTH_LONG).show();
-                    textResult.setText("Check-in fehlgeschlagen.\nBitte Netzwerkverbindung prüfen.");
-                });
-            }
-        });
     }
 }
