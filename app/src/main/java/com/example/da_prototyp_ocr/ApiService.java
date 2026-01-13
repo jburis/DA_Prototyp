@@ -45,4 +45,9 @@ public interface ApiService {
      */
     @POST("api/checkin-by-name")
     Call<Attendee> checkInByName(@Body Attendee attendee);
+
+    //AB HIER WERDEN NEUE HINZUGEFÜGT
+
+    @GET("api/veranstaltungen")
+    Call<List<Veranstaltung>> getVeranstaltungen();
 }

@@ -8,7 +8,7 @@ public class ApiClient {
     // WICHTIG: Ersetzen Sie diese IP-Adresse durch die lokale IP-Adresse
     // Ihres Computers, auf dem der Node.js-Server läuft.
     // Beispiele: "http://192.168.1.10:3000/", "http://10.0.2.2:3000/" (für Android Emulator)
-    private static final String BASE_URL = "http://10.0.2.2:3000";
+    private static final String BASE_URL = "http://10.0.2.2:3000/";
 
     private static Retrofit retrofit = null;
 
