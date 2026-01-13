@@ -6,7 +6,13 @@ import retrofit2.http.GET;
 import retrofit2.http.POST;
 import retrofit2.http.Path;
 import retrofit2.http.Query;
-
+import java.util.List;
+import retrofit2.Call;
+import retrofit2.http.Body;
+import retrofit2.http.GET;
+import retrofit2.http.Header;
+import retrofit2.http.POST;
+import retrofit2.http.Path;
 public interface ApiService {
 
     /**
@@ -50,4 +56,20 @@ public interface ApiService {
 
     @GET("api/veranstaltungen")
     Call<List<Veranstaltung>> getVeranstaltungen();
+
+
+    // Admin: Veranstaltung anlegen
+    @POST("api/veranstaltungen")
+    Call<Veranstaltung> createVeranstaltung(
+            @Header("x-admin-token") String adminToken,
+            @Body VeranstaltungCreateRequest body
+    );
+
+    // Admin: Buchungen importieren
+    @POST("api/veranstaltungen/{veranstaltung_id}/buchungen/import")
+    Call<ImportBuchungenResponse> importBuchungen(
+            @Header("x-admin-token") String adminToken,
+            @Path("veranstaltung_id") int veranstaltungId,
+            @Body ImportBuchungenRequest body
+    );
 }

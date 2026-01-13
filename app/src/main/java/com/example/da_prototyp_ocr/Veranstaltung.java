@@ -1,41 +1,23 @@
 package com.example.da_prototyp_ocr;
 
 import com.google.gson.annotations.SerializedName;
-import java.io.Serializable;
 
-public class Veranstaltung implements Serializable {
+public class Veranstaltung {
 
     @SerializedName("veranstaltung_id")
     private int veranstaltungId;
 
     @SerializedName("veranstaltung_name")
-    private String name;
+    private String veranstaltungName;
 
     @SerializedName("veranstaltung_datum")
-    private String datum;
+    private String veranstaltungDatum;
 
     @SerializedName("veranstaltung_ort")
-    private String ort;
+    private String veranstaltungOrt;
 
-    public int getVeranstaltungId() {
-        return veranstaltungId;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public String getDatum() {
-        return datum;
-    }
-
-    public String getOrt() {
-        return ort;
-    }
-
-    // Wichtig für ListView-Anzeige
-    @Override
-    public String toString() {
-        return name + " (" + ort + ")";
-    }
+    public int getVeranstaltungId() { return veranstaltungId; }
+    public String getVeranstaltungName() { return veranstaltungName; }
+    public String getVeranstaltungDatum() { return veranstaltungDatum; }
+    public String getVeranstaltungOrt() { return veranstaltungOrt; }
 }

@@ -99,7 +99,6 @@ public class MainActivity extends AppCompatActivity {
                 analyzeOnce();
             });
         });
-        startActivity(new Intent(this, PdfImportActivity.class));
 
         confirmCheckInBtn.setOnClickListener(v -> {
             if (currentScannedAttendee != null) {

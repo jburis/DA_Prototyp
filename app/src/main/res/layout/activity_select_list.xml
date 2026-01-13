@@ -18,4 +18,11 @@
         android:id="@+id/listView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"/>
+
+    <Button
+        android:id="@+id/btn_import_pdf"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Zusätzliche Listen laden" />
+
 </LinearLayout>
