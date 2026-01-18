@@ -50,7 +50,7 @@ public interface ApiService {
      * @param attendee Das Teilnehmer-Objekt, das mindestens den Namen enthalten muss.
      */
     @POST("api/checkin-by-name")
-    Call<Attendee> checkInByName(@Body Attendee attendee);
+    Call<Attendee> checkInLegacyByName(@Body Attendee attendee);
 
     //AB HIER WERDEN NEUE HINZUGEFÜGT
 
