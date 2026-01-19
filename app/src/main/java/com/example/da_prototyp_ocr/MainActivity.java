@@ -40,21 +40,24 @@ import java.util.concurrent.Executors;
 public class MainActivity extends AppCompatActivity {
 
     private static final int REQ_CAMERA = 100;
+    private static final String TAG = "MainActivity";
+    private static final String ADMIN_TOKEN = "supersecret-token";
 
     private PreviewView previewView;
     private Button scanBtn, qrBtn;
 
     private ExecutorService cameraExecutor;
     private ImageAnalysis analysis;
+    private ProcessCameraProvider cameraProvider;
 
     private TextView textResult;
     private boolean scanQrMode = false;
 
-    // --- Confirmation UI (Popup/Panel) ---
+    // --- Confirmation UI (Panel) ---
     private LinearLayout confirmationLayout;
     private TextView attendeeNameText, attendeeSeatsText;
 
-    // PLUS/MINUS UI
+    // PLUS/MINUS UI (müssen im XML existieren!)
     private Button btnMinus, btnPlus;
     private TextView checkInCountText;
 
@@ -62,14 +65,12 @@ public class MainActivity extends AppCompatActivity {
 
     // --- State ---
     private int checkInAmount = 1;
+    private volatile boolean isProcessing = false; // Scan-Lock
 
     private List<Buchung> allBuchungen = new ArrayList<>();
     private Buchung currentScannedBuchung;
 
     private int veranstaltungId = -1;
-
-    // Admin Token (muss dem .env entsprechen)
-    private static final String ADMIN_TOKEN = "supersecret-token";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -87,7 +88,7 @@ public class MainActivity extends AppCompatActivity {
         attendeeSeatsText = findViewById(R.id.attendeeSeatsText);
         confirmCheckInBtn = findViewById(R.id.confirmCheckInBtn);
 
-        // Diese IDs musst du im XML hinzufügen:
+        // Diese IDs müssen in activity_main.xml vorhanden sein:
         btnMinus = findViewById(R.id.btnMinus);
         btnPlus = findViewById(R.id.btnPlus);
         checkInCountText = findViewById(R.id.checkInCountText);
@@ -130,7 +131,7 @@ public class MainActivity extends AppCompatActivity {
             });
         });
 
-        // Confirm button -> immer Bestellnummer + anzahl
+        // Confirm button -> Bestellnummer + anzahl
         confirmCheckInBtn.setOnClickListener(v -> {
             if (currentScannedBuchung != null) {
                 performCheckInByBestellnummer(currentScannedBuchung.getBestellnummer(), checkInAmount);
@@ -146,38 +147,44 @@ public class MainActivity extends AppCompatActivity {
         ListenableFuture<ProcessCameraProvider> future = ProcessCameraProvider.getInstance(this);
         future.addListener(() -> {
             try {
-                ProcessCameraProvider provider = future.get();
+                cameraProvider = future.get();
 
-                Preview preview = new Preview.Builder().build();
+                Preview preview = new Preview.Builder()
+                        // Emulator stabiler + weniger ruckeln
+                        .setTargetResolution(new android.util.Size(640, 480))
+                        .build();
                 preview.setSurfaceProvider(previewView.getSurfaceProvider());
 
                 analysis = new ImageAnalysis.Builder()
+                        .setTargetResolution(new android.util.Size(640, 480))
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                        .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
                         .build();
 
                 CameraSelector selector = new CameraSelector.Builder()
                         .requireLensFacing(CameraSelector.LENS_FACING_BACK)
                         .build();
 
-                provider.unbindAll();
-                provider.bindToLifecycle(this, selector, preview, analysis);
+                cameraProvider.unbindAll();
+                cameraProvider.bindToLifecycle(this, selector, preview, analysis);
 
             } catch (ExecutionException | InterruptedException e) {
+                Log.e(TAG, "startCamera failed", e);
                 Toast.makeText(this, "Kamera-Start fehlgeschlagen", Toast.LENGTH_SHORT).show();
-                Log.e("CAMERA", "startCamera failed", e);
             }
         }, ContextCompat.getMainExecutor(this));
     }
 
     private void analyzeOnce() {
         if (analysis == null) return;
+        if (isProcessing) return;
 
+        isProcessing = true;
+
+        analysis.clearAnalyzer();
         analysis.setAnalyzer(cameraExecutor, imageProxy -> {
-            if (scanQrMode) {
-                runQrScan(imageProxy);
-            } else {
-                runOcrOnFrame(imageProxy);
-            }
+            if (scanQrMode) runQrScan(imageProxy);
+            else runOcrOnFrame(imageProxy);
             analysis.clearAnalyzer();
         });
     }
@@ -186,6 +193,7 @@ public class MainActivity extends AppCompatActivity {
     private void runOcrOnFrame(ImageProxy imageProxy) {
         Image mediaImage = imageProxy.getImage();
         if (mediaImage == null) {
+            isProcessing = false;
             imageProxy.close();
             return;
         }
@@ -195,10 +203,11 @@ public class MainActivity extends AppCompatActivity {
         TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
                 .process(img)
                 .addOnSuccessListener(this::handleOcrResult)
-                .addOnFailureListener(e ->
-                        Toast.makeText(this, "OCR-Fehler: " + e.getMessage(), Toast.LENGTH_SHORT).show()
-                )
-                .addOnCompleteListener(t -> imageProxy.close());
+                .addOnFailureListener(e -> Toast.makeText(this, "OCR-Fehler: " + e.getMessage(), Toast.LENGTH_SHORT).show())
+                .addOnCompleteListener(t -> {
+                    isProcessing = false;
+                    imageProxy.close();
+                });
     }
 
     private void handleOcrResult(Text visionText) {
@@ -219,6 +228,7 @@ public class MainActivity extends AppCompatActivity {
     private void runQrScan(ImageProxy imageProxy) {
         Image img = imageProxy.getImage();
         if (img == null) {
+            isProcessing = false;
             imageProxy.close();
             return;
         }
@@ -230,7 +240,7 @@ public class MainActivity extends AppCompatActivity {
                 .addOnSuccessListener(barcodes -> {
                     if (!barcodes.isEmpty()) {
                         String qrCodeValue = barcodes.get(0).getRawValue();
-                        Log.d("QRSCAN", "QR-Code Rohdaten: " + qrCodeValue);
+                        Log.d(TAG, "QR-Code Rohdaten: " + qrCodeValue);
 
                         String participantName = NameExtractor.extractQRName(qrCodeValue);
 
@@ -248,8 +258,11 @@ public class MainActivity extends AppCompatActivity {
                         runOnUiThread(() -> Toast.makeText(this, "Kein QR-Code erkannt", Toast.LENGTH_SHORT).show());
                     }
                 })
-                .addOnFailureListener(e -> Log.e("QRSCAN", "QR-Code-Analyse fehlgeschlagen", e))
-                .addOnCompleteListener(task -> imageProxy.close());
+                .addOnFailureListener(e -> Log.e(TAG, "QR-Code-Analyse fehlgeschlagen", e))
+                .addOnCompleteListener(task -> {
+                    isProcessing = false;
+                    imageProxy.close();
+                });
     }
 
     @Override
@@ -258,6 +271,23 @@ public class MainActivity extends AppCompatActivity {
         if (code == REQ_CAMERA && r.length > 0 && r[0] == PackageManager.PERMISSION_GRANTED) {
             startCamera();
         }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        // sauber freigeben -> reduziert "too many clients" / reopen loops
+        try {
+            if (cameraProvider != null) cameraProvider.unbindAll();
+        } catch (Exception ignored) {}
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        try {
+            if (cameraExecutor != null) cameraExecutor.shutdown();
+        } catch (Exception ignored) {}
     }
 
     // ---------------- Buchungen + Anwesenheiten laden ----------------
@@ -397,12 +427,22 @@ public class MainActivity extends AppCompatActivity {
     private void showConfirmation(Buchung buchung) {
         currentScannedBuchung = buchung;
 
+        // Default = 1, aber max = freie Plätze
+        int free = buchung.getAnzahlPlaetze() - buchung.getCheckedInCount();
+        if (free < 1) {
+            confirmationLayout.setVisibility(View.GONE);
+            textResult.setText("Keine freien Plätze mehr für diese Buchung.");
+            Toast.makeText(this, "Keine freien Plätze mehr.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         checkInAmount = 1;
         updateCheckInAmountUI();
 
         attendeeNameText.setText("Teilnehmer: " + buchung.getDisplayName());
         attendeeSeatsText.setText("Plätze: " + buchung.getAnzahlPlaetze()
-                + " / Eingecheckt: " + buchung.getCheckedInCount());
+                + " / Eingecheckt: " + buchung.getCheckedInCount()
+                + " / Frei: " + free);
 
         confirmationLayout.setVisibility(View.VISIBLE);
         textResult.setText("Bitte Check-in bestätigen.");
@@ -459,7 +499,8 @@ public class MainActivity extends AppCompatActivity {
         }
         if (anzahl < 1) anzahl = 1;
 
-        final int finalAnzahl = anzahl; // <- wichtig für Lambda (effektiv final)
+        // Lambda braucht final/effectively final
+        final int finalAnzahl = anzahl;
 
         ApiService apiService = ApiClient.getClient().create(ApiService.class);
         CheckinByBestellnummerRequest body = new CheckinByBestellnummerRequest(bestellnummer, finalAnzahl);
