@@ -46,14 +46,14 @@ public class SelectListActivity extends AppCompatActivity {
         listView.setOnItemClickListener((parent, view, position, id) -> {
             Veranstaltung v = veranstaltungen.get(position);
 
-            Intent intent = new Intent(SelectListActivity.this, MainActivity.class);
+            Intent intent = new Intent(SelectListActivity.this, AttendanceCheckInActivity.class);
             intent.putExtra("VERANSTALTUNG_ID", v.getVeranstaltungId());
             startActivity(intent);
         });
 
         // 3) NEU: PDF Import öffnen
         btnImportPdf.setOnClickListener(v -> {
-            Intent intent = new Intent(SelectListActivity.this, PdfImportActivity.class);
+            Intent intent = new Intent(SelectListActivity.this, AttendanceSheetImportActivity.class);
             startActivityForResult(intent, REQ_IMPORT_PDF);
         });
     }

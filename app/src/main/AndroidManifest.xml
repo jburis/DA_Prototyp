@@ -38,7 +38,7 @@
             android:exported="true" />
 
         <activity
-            android:name=".MainActivity"
+            android:name=".AttendanceCheckInActivity"
             android:exported="true" />
 
         <activity
@@ -50,7 +50,7 @@
             android:name=".AdminAreaActivity"
             android:exported="true" />
 
-        <activity android:name=".PdfImportActivity" />
+        <activity android:name=".AttendanceSheetImportActivity" />
 
     </application>
 </manifest>

@@ -37,7 +37,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class MainActivity extends AppCompatActivity {
+public class AttendanceCheckInActivity extends AppCompatActivity {
 
     private static final int REQ_CAMERA = 100;
     private static final String TAG = "MainActivity";
@@ -306,7 +306,7 @@ public class MainActivity extends AppCompatActivity {
                     public void onResponse(@NonNull retrofit2.Call<List<Buchung>> call,
                                            @NonNull retrofit2.Response<List<Buchung>> response) {
                         if (!response.isSuccessful() || response.body() == null) {
-                            runOnUiThread(() -> Toast.makeText(MainActivity.this,
+                            runOnUiThread(() -> Toast.makeText(AttendanceCheckInActivity.this,
                                     "Fehler beim Laden der Buchungen: " + response.code(),
                                     Toast.LENGTH_LONG).show());
                             return;
@@ -338,7 +338,7 @@ public class MainActivity extends AppCompatActivity {
                                             allBuchungen = buchungen;
 
                                             if (onFinished != null) onFinished.run();
-                                            else Toast.makeText(MainActivity.this,
+                                            else Toast.makeText(AttendanceCheckInActivity.this,
                                                     allBuchungen.size() + " Buchungen geladen.",
                                                     Toast.LENGTH_SHORT).show();
                                         });
@@ -351,7 +351,7 @@ public class MainActivity extends AppCompatActivity {
                                             for (Buchung b : buchungen) b.setCheckedInCount(0);
                                             allBuchungen = buchungen;
                                             if (onFinished != null) onFinished.run();
-                                            Toast.makeText(MainActivity.this,
+                                            Toast.makeText(AttendanceCheckInActivity.this,
                                                     "Anwesenheiten konnten nicht geladen werden (checkedIn=0).",
                                                     Toast.LENGTH_LONG).show();
                                         });
@@ -362,7 +362,7 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onFailure(@NonNull retrofit2.Call<List<Buchung>> call,
                                           @NonNull Throwable t) {
-                        runOnUiThread(() -> Toast.makeText(MainActivity.this,
+                        runOnUiThread(() -> Toast.makeText(AttendanceCheckInActivity.this,
                                 "Netzwerkfehler beim Laden der Buchungen: " + t.getMessage(),
                                 Toast.LENGTH_LONG).show());
                     }
@@ -513,13 +513,13 @@ public class MainActivity extends AppCompatActivity {
                         runOnUiThread(() -> {
                             if (response.isSuccessful()) {
                                 String msg = "Check-in (" + finalAnzahl + ") für Bestellnummer " + bestellnummer + " erfolgreich!";
-                                Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
+                                Toast.makeText(AttendanceCheckInActivity.this, msg, Toast.LENGTH_LONG).show();
                                 textResult.setText(msg);
 
                                 loadBuchungenAndAnwesenheiten(null);
                             } else {
                                 String errorMessage = "API-Fehler beim Check-in. Code: " + response.code();
-                                Toast.makeText(MainActivity.this, errorMessage, Toast.LENGTH_LONG).show();
+                                Toast.makeText(AttendanceCheckInActivity.this, errorMessage, Toast.LENGTH_LONG).show();
                                 textResult.setText(errorMessage);
                             }
                         });
@@ -530,7 +530,7 @@ public class MainActivity extends AppCompatActivity {
                                           @NonNull Throwable t) {
                         runOnUiThread(() -> {
                             String failureMessage = "Netzwerkfehler: " + t.getMessage();
-                            Toast.makeText(MainActivity.this, failureMessage, Toast.LENGTH_LONG).show();
+                            Toast.makeText(AttendanceCheckInActivity.this, failureMessage, Toast.LENGTH_LONG).show();
                             textResult.setText("Check-in fehlgeschlagen.\nBitte Netzwerkverbindung prüfen.");
                         });
                     }
