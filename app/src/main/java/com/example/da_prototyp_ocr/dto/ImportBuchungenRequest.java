@@ -1,4 +1,4 @@
-package com.example.da_prototyp_ocr;
+package com.example.da_prototyp_ocr.dto;
 
 import java.util.List;
 

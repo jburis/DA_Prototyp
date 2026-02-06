@@ -1,4 +1,4 @@
-package com.example.da_prototyp_ocr;
+package com.example.da_prototyp_ocr.ui;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -8,7 +8,14 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.TextView;
-
+import com.example.da_prototyp_ocr.R;
+import com.example.da_prototyp_ocr.dto.ImportBuchungItem;
+import com.example.da_prototyp_ocr.dto.ImportBuchungenRequest;
+import com.example.da_prototyp_ocr.dto.ImportBuchungenResponse;
+import com.example.da_prototyp_ocr.dto.VeranstaltungCreateRequest;
+import com.example.da_prototyp_ocr.model.Veranstaltung;
+import com.example.da_prototyp_ocr.network.ApiClient;
+import com.example.da_prototyp_ocr.network.ApiService;
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader;
 import com.tom_roush.pdfbox.pdmodel.PDDocument;
 import com.tom_roush.pdfbox.text.PDFTextStripper;

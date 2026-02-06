@@ -1,4 +1,4 @@
-package com.example.da_prototyp_ocr;
+package com.example.da_prototyp_ocr.ui;
 
 import android.os.Bundle;
 import android.widget.ArrayAdapter;
@@ -7,9 +7,12 @@ import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.example.da_prototyp_ocr.R;
+
 import java.util.ArrayList;
 
-public class AdminAreaActivity extends AppCompatActivity {
+public class    AdminAreaActivity extends AppCompatActivity {
     private ArrayAdapter<String> adapter;
     private ArrayList<String> teilnehmerListe;
 

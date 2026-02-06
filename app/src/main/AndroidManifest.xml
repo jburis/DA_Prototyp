@@ -25,7 +25,7 @@
         android:usesCleartextTraffic="true">
 
         <activity
-            android:name=".StartActivity"
+            android:name=".ui.StartActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -34,23 +34,23 @@
         </activity>
 
         <activity
-            android:name=".SelectListActivity"
+            android:name=".ui.SelectListActivity"
             android:exported="true" />
 
         <activity
-            android:name=".AttendanceCheckInActivity"
+            android:name=".ui.AttendanceCheckInActivity"
             android:exported="true" />
 
         <activity
-            android:name=".AdminLoginActivity"
+            android:name=".ui.AdminLoginActivity"
             android:exported="true" />
 
         <!-- Ergänzung: Admin-Bereich -->
         <activity
-            android:name=".AdminAreaActivity"
+            android:name=".ui.AdminAreaActivity"
             android:exported="true" />
 
-        <activity android:name=".AttendanceSheetImportActivity" />
+        <activity android:name=".ui.AttendanceSheetImportActivity" />
 
     </application>
 </manifest>

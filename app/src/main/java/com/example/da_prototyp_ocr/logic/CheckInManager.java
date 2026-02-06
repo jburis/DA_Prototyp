@@ -1,6 +1,6 @@
 package com.example.da_prototyp_ocr.logic;
 
-import com.example.da_prototyp_ocr.Buchung;
+import com.example.da_prototyp_ocr.model.Buchung;
 
 public class CheckInManager {
 

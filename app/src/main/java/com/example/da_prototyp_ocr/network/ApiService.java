@@ -1,4 +1,17 @@
-package com.example.da_prototyp_ocr;
+package com.example.da_prototyp_ocr.network;
+import com.example.da_prototyp_ocr.model.Anwesenheit;
+import com.example.da_prototyp_ocr.model.Attendee;
+import com.example.da_prototyp_ocr.dto.AttendeeIdResponse;
+import com.example.da_prototyp_ocr.model.Buchung;
+import com.example.da_prototyp_ocr.dto.CheckInRequest;
+import com.example.da_prototyp_ocr.dto.CheckinByBestellnummerRequest;
+import com.example.da_prototyp_ocr.dto.CheckinByNameRequest;
+import com.example.da_prototyp_ocr.dto.CheckinByNameResponse;
+import com.example.da_prototyp_ocr.dto.ImportBuchungenRequest;
+import com.example.da_prototyp_ocr.dto.ImportBuchungenResponse;
+import com.example.da_prototyp_ocr.model.Veranstaltung;
+import com.example.da_prototyp_ocr.dto.VeranstaltungCreateRequest;
+
 import java.util.List;
 import retrofit2.Call;
 import retrofit2.http.Body;
@@ -6,13 +19,8 @@ import retrofit2.http.GET;
 import retrofit2.http.POST;
 import retrofit2.http.Path;
 import retrofit2.http.Query;
-import java.util.List;
-import retrofit2.Call;
-import retrofit2.http.Body;
-import retrofit2.http.GET;
 import retrofit2.http.Header;
-import retrofit2.http.POST;
-import retrofit2.http.Path;
+
 public interface ApiService {
 
     /**

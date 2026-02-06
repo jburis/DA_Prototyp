@@ -1,4 +1,4 @@
-package com.example.da_prototyp_ocr;
+package com.example.da_prototyp_ocr.ui;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -6,6 +6,8 @@ import android.os.Handler;
 import android.widget.Button;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.example.da_prototyp_ocr.R;
 import com.google.android.material.bottomnavigation.BottomNavigationView; // Import für BottomNavigationView
 
 import java.text.SimpleDateFormat;
@@ -17,7 +19,7 @@ public class StartActivity extends AppCompatActivity {
     private TextView timeText;
     private TextView dateText;
     private final Handler handler = new Handler();
-
+// Denis war hier
     private final Runnable updateTimeRunnable = new Runnable() {
         @Override
         public void run() {

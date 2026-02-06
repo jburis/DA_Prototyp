@@ -1,4 +1,4 @@
-package com.example.da_prototyp_ocr;
+package com.example.da_prototyp_ocr.logic;
 
 import java.util.ArrayList;
 import java.util.List;

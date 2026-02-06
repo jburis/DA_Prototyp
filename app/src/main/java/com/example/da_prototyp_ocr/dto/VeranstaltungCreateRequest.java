@@ -1,4 +1,4 @@
-package com.example.da_prototyp_ocr;
+package com.example.da_prototyp_ocr.dto;
 
 public class VeranstaltungCreateRequest {
     public String veranstaltung_name;

@@ -1,4 +1,4 @@
-package com.example.da_prototyp_ocr;
+package com.example.da_prototyp_ocr.ui;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
@@ -18,18 +18,25 @@ import androidx.camera.core.ImageAnalysis;
 import androidx.camera.view.PreviewView;
 import androidx.core.content.ContextCompat;
 
+import com.example.da_prototyp_ocr.R;
 import com.example.da_prototyp_ocr.camera.CameraController;
 import com.example.da_prototyp_ocr.camera.OcrAnalyzer;
 import com.example.da_prototyp_ocr.camera.QrAnalyzer;
+import com.example.da_prototyp_ocr.dto.CheckinByBestellnummerRequest;
 import com.example.da_prototyp_ocr.logic.BuchungMatcher;
 import com.example.da_prototyp_ocr.logic.CheckInManager;
+import com.example.da_prototyp_ocr.logic.NameExtractor;
+import com.example.da_prototyp_ocr.model.Anwesenheit;
+import com.example.da_prototyp_ocr.model.Buchung;
+import com.example.da_prototyp_ocr.network.ApiClient;
+import com.example.da_prototyp_ocr.network.ApiService;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
+// Kurze Frage von Denis wie benutzt du Java und nicht Kotlin?
 public class AttendanceCheckInActivity extends AppCompatActivity {
 
     private static final int REQ_CAMERA = 100;

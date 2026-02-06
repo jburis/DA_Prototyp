@@ -2,7 +2,7 @@ package com.example.da_prototyp_ocr.logic;
 
 import androidx.annotation.Nullable;
 
-import com.example.da_prototyp_ocr.Buchung;
+import com.example.da_prototyp_ocr.model.Buchung;
 
 import java.util.List;
 

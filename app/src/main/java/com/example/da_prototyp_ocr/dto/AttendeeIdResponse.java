@@ -1,4 +1,4 @@
-package com.example.da_prototyp_ocr; // Passen Sie das Paket an Ihr Projekt an
+package com.example.da_prototyp_ocr.dto; // Passen Sie das Paket an Ihr Projekt an
 
 import com.google.gson.annotations.SerializedName;
 
