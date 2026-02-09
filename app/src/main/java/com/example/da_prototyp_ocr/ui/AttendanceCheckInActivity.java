@@ -36,7 +36,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-// Kurze Frage von Denis wie benutzt du Java und nicht Kotlin?
+
 public class AttendanceCheckInActivity extends AppCompatActivity {
 
     private static final int REQ_CAMERA = 100;
@@ -45,7 +45,6 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
 
     private PreviewView previewView;
     private Button scanBtn, qrBtn;
-
     private TextView textResult;
 
     // Confirmation UI
@@ -54,6 +53,9 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
     private Button btnMinus, btnPlus;
     private TextView checkInCountText;
     private Button confirmCheckInBtn;
+
+    // Toggle Button (muss im XML existieren: @+id/btnToggleCamera)
+    private Button toggleCameraBtn;
 
     // State
     private int veranstaltungId = -1;
@@ -70,6 +72,8 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
     // Camera
     private final CameraController cameraController = new CameraController();
     private ExecutorService analyzerExecutor;
+
+    private boolean isCameraOn = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -91,6 +95,8 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
         btnPlus = findViewById(R.id.btnPlus);
         checkInCountText = findViewById(R.id.checkInCountText);
 
+        toggleCameraBtn = findViewById(R.id.btnToggleCamera);
+
         confirmationLayout.setVisibility(View.GONE);
 
         analyzerExecutor = Executors.newSingleThreadExecutor();
@@ -102,7 +108,13 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
 
         setupPlusMinus();
 
-        // Camera permission
+        // Toggle Kamera
+        if (toggleCameraBtn != null) {
+            toggleCameraBtn.setOnClickListener(v -> toggleCamera());
+        }
+        updateToggleButtonUi();
+
+        // Camera permission + auto-start
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.CAMERA}, REQ_CAMERA);
         } else {
@@ -111,12 +123,20 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
 
         scanBtn.setOnClickListener(v -> {
             confirmationLayout.setVisibility(View.GONE);
-            loadBuchungenAndAnwesenheiten(() -> startOneShotOcr());
+            if (!isCameraOn) {
+                Toast.makeText(this, "Kamera ist aus. Bitte Kamera einschalten.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            loadBuchungenAndAnwesenheiten(this::startOneShotOcr);
         });
 
         qrBtn.setOnClickListener(v -> {
             confirmationLayout.setVisibility(View.GONE);
-            loadBuchungenAndAnwesenheiten(() -> startOneShotQr());
+            if (!isCameraOn) {
+                Toast.makeText(this, "Kamera ist aus. Bitte Kamera einschalten.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            loadBuchungenAndAnwesenheiten(this::startOneShotQr);
         });
 
         confirmCheckInBtn.setOnClickListener(v -> {
@@ -133,14 +153,59 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
         });
     }
 
+    // =================== Kamera Toggle ===================
+
+    private void toggleCamera() {
+        if (isCameraOn) stopCamera();
+        else startCameraSafe();
+    }
+
+    private void startCameraSafe() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.CAMERA}, REQ_CAMERA);
+            return;
+        }
+        startCamera();
+    }
+
+    private void stopCamera() {
+        try {
+            ImageAnalysis analysis = cameraController.getImageAnalysis();
+            if (analysis != null) analysis.clearAnalyzer();
+
+            cameraController.stop();
+
+            isCameraOn = false;
+            isProcessing = false;
+
+            // Optional: Preview “optisch” aus
+            previewView.setVisibility(View.INVISIBLE);
+
+            updateToggleButtonUi();
+            Toast.makeText(this, "Kamera aus", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Log.e(TAG, "stopCamera failed", e);
+        }
+    }
+
+    private void updateToggleButtonUi() {
+        if (toggleCameraBtn == null) return;
+        toggleCameraBtn.setText(isCameraOn ? "Kamera AUS" : "Kamera AN");
+    }
+
+    // =================== Kamera Start + Analyzer ===================
+
     private void startCamera() {
-        // Emulator stabiler: 640x480
         cameraController.start(
                 this,
                 previewView,
                 CameraSelector.LENS_FACING_BACK,
                 new Size(640, 480)
         );
+
+        previewView.setVisibility(View.VISIBLE);
+        isCameraOn = true;
+        updateToggleButtonUi();
     }
 
     private void startOneShotOcr() {
@@ -291,7 +356,7 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
     @Override
     protected void onStop() {
         super.onStop();
-        cameraController.stop();
+        stopCamera();
     }
 
     @Override
@@ -302,13 +367,18 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
         } catch (Exception ignored) {}
     }
 
+    // ✅ FIX: richtige Signatur! (grantResults ist int[])
     @Override
-    public void onRequestPermissionsResult(int code, @NonNull String[] p, @NonNull int[] r) {
-        super.onRequestPermissionsResult(code, p, r);
-        if (code == REQ_CAMERA && r.length > 0 && r[0] == PackageManager.PERMISSION_GRANTED) startCamera();
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQ_CAMERA && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            startCamera();
+        } else if (requestCode == REQ_CAMERA) {
+            Toast.makeText(this, "Kamera-Berechtigung verweigert", Toast.LENGTH_LONG).show();
+        }
     }
 
-    // =================== API / Data Load (unverändert, nur hier unten) ===================
+    // =================== API / Data Load ===================
 
     private void loadBuchungenAndAnwesenheiten(Runnable onFinished) {
         if (veranstaltungId == -1) {
