@@ -1,47 +1,176 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="24dp">
+    android:orientation="vertical"
+    android:background="#FAF9FB"
+    android:padding="20dp">
 
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#FFFFFF"
+        android:elevation="6dp"
+        android:padding="18dp">
+
+        <ImageView
+            android:id="@+id/logo"
+            android:layout_width="260dp"
+            android:layout_height="64dp"
+            android:layout_gravity="center"
+            android:scaleType="fitCenter"
+            android:src="@drawable/kwp_bild"
+            android:contentDescription="Logo"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Admin-Bereich"
+            android:textStyle="bold"
+            android:textSize="22sp"
+            android:textColor="#1A1A1A"
+            android:gravity="center"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="Events sperren, löschen und exportieren"
+            android:textSize="14sp"
+            android:textColor="#666666"
+            android:gravity="center"/>
+    </LinearLayout>
+
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="14dp"/>
+
+    <!-- Event Liste -->
     <TextView
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Admin-Bereich"
-        android:textSize="24sp"
+        android:text="Events"
         android:textStyle="bold"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginBottom="16dp"/>
-
-    <ListView
-        android:id="@+id/lv_teilnehmer"
-        android:layout_width="match_parent"
-        android:layout_height="200dp"
-        android:divider="#D32F2F"
-        android:dividerHeight="1dp"
-        android:layout_marginBottom="16dp"/>
-
-    <EditText
-        android:id="@+id/et_neuer_teilnehmer"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Neuer Teilnehmer"
-        android:layout_marginBottom="12dp"/>
-
-    <Button
-        android:id="@+id/btn_add"
-        android:text="Hinzufügen"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:backgroundTint="#4CAF50"
-        android:textColor="#FFF"
+        android:textSize="14sp"
+        android:textColor="#1A1A1A"
         android:layout_marginBottom="8dp"/>
 
-    <Button
-        android:id="@+id/btn_logout"
-        android:text="Abmelden"
+    <ListView
+        android:id="@+id/listViewEvents"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:divider="#EDEDED"
+        android:dividerHeight="1dp"
+        android:background="#FFFFFF"
+        android:padding="8dp"/>
+
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="12dp"/>
+
+    <!-- Ausgewähltes Event -->
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:backgroundTint="#F44336"
-        android:textColor="#FFF"/>
+        android:text="Ausgewähltes Event"
+        android:textStyle="bold"
+        android:textSize="14sp"
+        android:textColor="#1A1A1A"
+        android:layout_marginBottom="6dp"/>
+
+    <TextView
+        android:id="@+id/tvSelectedEvent"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:text="Kein Event ausgewählt"
+        android:textColor="#1A1A1A"
+        android:gravity="center_vertical"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:background="@android:drawable/edit_text"/>
+
+    <!-- Buttons row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="12dp">
+
+        <Button
+            android:id="@+id/btnLockEvent"
+            android:layout_width="0dp"
+            android:layout_height="54dp"
+            android:layout_weight="1"
+            android:text="Sperren"
+            android:textAllCaps="false"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#FF6600"/>
+
+        <Space
+            android:layout_width="12dp"
+            android:layout_height="1dp"/>
+
+        <Button
+            android:id="@+id/btnDeleteEvent"
+            android:layout_width="0dp"
+            android:layout_height="54dp"
+            android:layout_weight="1"
+            android:text="Löschen"
+            android:textAllCaps="false"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#D9534F"/>
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btnExportEvent"
+        android:layout_width="match_parent"
+        android:layout_height="54dp"
+        android:layout_marginTop="12dp"
+        android:text="Exportieren"
+        android:textAllCaps="false"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:backgroundTint="#2F7DFF"/>
+
+    <!-- Email -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="E-Mail für Export"
+        android:textStyle="bold"
+        android:textSize="14sp"
+        android:textColor="#1A1A1A"
+        android:layout_marginTop="14dp"
+        android:layout_marginBottom="6dp"/>
+
+    <EditText
+        android:id="@+id/etEmail"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:hint="z.B. beispiel@schule.at"
+        android:inputType="textEmailAddress"
+        android:textColor="#1A1A1A"
+        android:textColorHint="#8A8A8A"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:background="@android:drawable/edit_text"/>
+
+    <Button
+        android:id="@+id/btnLogout"
+        android:layout_width="match_parent"
+        android:layout_height="54dp"
+        android:layout_marginTop="12dp"
+        android:text="Abmelden"
+        android:textAllCaps="false"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:backgroundTint="#FF3B30"/>
+
 </LinearLayout>

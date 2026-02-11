@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FAF9FB"
+    android:padding="20dp">
+
+    <LinearLayout
+        android:id="@+id/content"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#FFFFFF"
+        android:elevation="6dp"
+        android:padding="18dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Teilnehmer hinzufügen"
+            android:textStyle="bold"
+            android:textSize="22sp"
+            android:textColor="#1A1A1A"
+            android:gravity="center"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="Manuell hinzufügen, falls Scan nicht möglich ist."
+            android:textSize="14sp"
+            android:textColor="#666666"
+            android:gravity="center"/>
+
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="14dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Name"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:textColor="#1A1A1A"
+            android:layout_marginBottom="6dp"/>
+
+        <EditText
+            android:id="@+id/etName"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:hint="z.B. Max Mustermann"
+            android:textColor="#1A1A1A"
+            android:textColorHint="#8A8A8A"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:background="@android:drawable/edit_text"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Bestellnummer (optional)"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:textColor="#1A1A1A"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="6dp"/>
+
+        <EditText
+            android:id="@+id/etOrder"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:hint="z.B. 12345"
+            android:inputType="text"
+            android:textColor="#1A1A1A"
+            android:textColorHint="#8A8A8A"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:background="@android:drawable/edit_text"/>
+
+    </LinearLayout>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabAdd"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentEnd="true"
+        android:layout_margin="18dp"
+        android:contentDescription="Hinzufügen"
+        app:srcCompat="@android:drawable/ic_input_add"
+        app:backgroundTint="#FF6600" />
+
+</RelativeLayout>

@@ -5,53 +5,105 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.da_prototyp_ocr.R;
 
 import java.util.ArrayList;
+import java.util.List;
 
-public class    AdminAreaActivity extends AppCompatActivity {
-    private ArrayAdapter<String> adapter;
-    private ArrayList<String> teilnehmerListe;
+public class AdminAreaActivity extends AppCompatActivity {
+
+    private ListView listViewEvents;
+    private TextView tvSelectedEvent;
+    private EditText etEmail;
+
+    private Button btnLockEvent, btnDeleteEvent, btnExportEvent, btnLogout;
+
+    private final List<String> events = new ArrayList<>();
+    private ArrayAdapter<String> eventsAdapter;
+
+    private String selectedEvent = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_admin_area);
 
-        teilnehmerListe = new ArrayList<>();
-        teilnehmerListe.add("Teilnehmer1");
-        teilnehmerListe.add("Teilnehmer2");
-        teilnehmerListe.add("Teilnehmer3");
+        // Views (IDs müssen im XML existieren)
+        listViewEvents = findViewById(R.id.listViewEvents);
+        tvSelectedEvent = findViewById(R.id.tvSelectedEvent);
+        etEmail = findViewById(R.id.etEmail);
 
-        ListView listView = findViewById(R.id.lv_teilnehmer);
-        adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, teilnehmerListe);
-        listView.setAdapter(adapter);
+        btnLockEvent = findViewById(R.id.btnLockEvent);
+        btnDeleteEvent = findViewById(R.id.btnDeleteEvent);
+        btnExportEvent = findViewById(R.id.btnExportEvent);
+        btnLogout = findViewById(R.id.btnLogout);
 
-        listView.setOnItemClickListener((parent, view, position, id) -> {
-            String entfernt = teilnehmerListe.remove(position);
-            adapter.notifyDataSetChanged();
-            Toast.makeText(this, entfernt + " entfernt", Toast.LENGTH_SHORT).show();
+        // Dummy Events
+        events.add("Senior:innenfest");
+        events.add("Kaiser Wiesn 2024");
+        events.add("Ausflug Tiergarten");
+        events.add("Tanznachmittag");
+        events.add("Konzert im Park");
+
+        eventsAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, events);
+        listViewEvents.setAdapter(eventsAdapter);
+
+        // Event auswählen
+        listViewEvents.setOnItemClickListener((parent, view, position, id) -> {
+            selectedEvent = events.get(position);
+            tvSelectedEvent.setText(selectedEvent);
         });
 
-        EditText etNeuerTeilnehmer = findViewById(R.id.et_neuer_teilnehmer);
-        Button btnAdd = findViewById(R.id.btn_add);
-        btnAdd.setOnClickListener(v -> {
-            String name = etNeuerTeilnehmer.getText().toString().trim();
-            if (!name.isEmpty()) {
-                teilnehmerListe.add(name);
-                adapter.notifyDataSetChanged();
-                etNeuerTeilnehmer.setText(""); // Feld leeren
-            } else {
-                Toast.makeText(this, "Bitte Namen eingeben!", Toast.LENGTH_SHORT).show();
+        btnLockEvent.setOnClickListener(v -> {
+            if (selectedEvent == null) {
+                toast("Bitte zuerst ein Event auswählen.");
+                return;
             }
+            toast("Event gesperrt: " + selectedEvent);
+            // TODO später: API call "lock event"
         });
 
-        Button btnLogout = findViewById(R.id.btn_logout);
-        btnLogout.setOnClickListener(v -> {
-            finish(); // oder zu Login zurück
+        btnDeleteEvent.setOnClickListener(v -> {
+            if (selectedEvent == null) {
+                toast("Bitte zuerst ein Event auswählen.");
+                return;
+            }
+
+            // Dummy: aus Liste entfernen
+            events.remove(selectedEvent);
+            eventsAdapter.notifyDataSetChanged();
+            toast("Event gelöscht: " + selectedEvent);
+
+            selectedEvent = null;
+            tvSelectedEvent.setText("Kein Event ausgewählt");
+            // TODO später: API call "delete event"
         });
+
+        btnExportEvent.setOnClickListener(v -> {
+            if (selectedEvent == null) {
+                toast("Bitte zuerst ein Event auswählen.");
+                return;
+            }
+
+            String email = etEmail.getText().toString().trim();
+            if (email.isEmpty() || !email.contains("@")) {
+                toast("Bitte gültige E-Mail eingeben.");
+                return;
+            }
+
+            toast("Export gestartet für '" + selectedEvent + "' an: " + email);
+            // TODO später: API call "export event list"
+        });
+
+        btnLogout.setOnClickListener(v -> finish());
+    }
+
+    private void toast(String msg) {
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
     }
 }

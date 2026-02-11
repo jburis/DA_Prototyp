@@ -1,28 +1,84 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:background="#F6F7F9">
 
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#FFFFFF"
+        android:elevation="6dp"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="18dp"
+        android:paddingBottom="16dp">
+
+        <ImageView
+            android:id="@+id/logo"
+            android:layout_width="260dp"
+            android:layout_height="64dp"
+            android:layout_gravity="center"
+            android:scaleType="fitCenter"
+            android:src="@drawable/kwp_bild"
+            android:contentDescription="Logo"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="Teilnehmerliste importieren"
+            android:textStyle="bold"
+            android:textSize="20sp"
+            android:textColor="#1A1A1A"
+            android:gravity="center"/>
+    </LinearLayout>
+
+    <!-- Button -->
     <Button
         android:id="@+id/btnSelectPdf"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="PDF auswählen" />
+        android:layout_height="64dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="16dp"
+        android:text="PDF auswählen"
+        android:textAllCaps="false"
+        android:textStyle="bold"
+        android:textSize="18sp"
+        android:textColor="#FFFFFF"
+        android:backgroundTint="#FF6600"
+        android:elevation="8dp"/>
 
-    <ScrollView
+    <!-- Result Card -->
+    <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:paddingTop="16dp">
+        android:layout_margin="16dp"
+        app:cardElevation="6dp"
+        app:cardCornerRadius="16dp">
 
-        <TextView
-            android:id="@+id/tvResult"
+        <ScrollView
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Noch keine PDF ausgewählt."
-            android:textSize="14sp" />
-    </ScrollView>
+            android:layout_height="match_parent"
+            android:padding="14dp">
+
+            <TextView
+                android:id="@+id/tvResult"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Noch keine PDF ausgewählt."
+                android:textSize="15sp"
+                android:textColor="#1A1A1A"
+                android:lineSpacingExtra="4dp"/>
+        </ScrollView>
+
+    </androidx.cardview.widget.CardView>
 
 </LinearLayout>

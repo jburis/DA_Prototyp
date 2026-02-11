@@ -1,11 +1,12 @@
+// SelectListActivity.java
 package com.example.da_prototyp_ocr.ui;
 
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
-import android.widget.ArrayAdapter;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
@@ -15,6 +16,7 @@ import com.example.da_prototyp_ocr.R;
 import com.example.da_prototyp_ocr.model.Veranstaltung;
 import com.example.da_prototyp_ocr.network.ApiClient;
 import com.example.da_prototyp_ocr.network.ApiService;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,7 +35,7 @@ public class SelectListActivity extends AppCompatActivity {
 
     private ArrayAdapter<String> adapter;
     private final List<Veranstaltung> veranstaltungen = new ArrayList<>();
-    private final List<String> titles = new ArrayList<>(); // Anzeige im ListView
+    private final List<String> titles = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,31 +48,54 @@ public class SelectListActivity extends AppCompatActivity {
         adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, titles);
         listView.setAdapter(adapter);
 
-        // 1) Listen laden
+        setupBottomNav();
+
         loadVeranstaltungen();
 
-        // 2) Klick auf Veranstaltung -> AttendanceCheckInActivity öffnen
         listView.setOnItemClickListener((parent, view, position, id) -> {
             Veranstaltung v = veranstaltungen.get(position);
-
             Intent intent = new Intent(SelectListActivity.this, AttendanceCheckInActivity.class);
             intent.putExtra("VERANSTALTUNG_ID", v.getVeranstaltungId());
             startActivity(intent);
         });
 
-        // 3) PDF Import öffnen
         btnImportPdf.setOnClickListener(v -> {
             Intent intent = new Intent(SelectListActivity.this, AttendanceSheetImportActivity.class);
             startActivityForResult(intent, REQ_IMPORT_PDF);
         });
     }
 
+    private void setupBottomNav() {
+        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+
+
+
+        bottomNav.setOnItemSelectedListener(item -> {
+            int id = item.getItemId();
+
+            if (id == R.id.nav_home) {
+                startActivity(new Intent(SelectListActivity.this, StartActivity.class));
+                overridePendingTransition(0, 0);
+                finish();
+                return true;
+            }
+
+
+
+            if (id == R.id.nav_admin) {
+                startActivity(new Intent(SelectListActivity.this, AdminLoginActivity.class));
+                overridePendingTransition(0, 0);
+                return true;
+            }
+
+            return false;
+        });
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-
         if (requestCode == REQ_IMPORT_PDF && resultCode == RESULT_OK) {
-            // Nach erfolgreichem Import neu laden
             loadVeranstaltungen();
         }
     }
@@ -78,7 +103,6 @@ public class SelectListActivity extends AppCompatActivity {
     private void loadVeranstaltungen() {
         ApiService api = ApiClient.getClient().create(ApiService.class);
 
-        // ✅ HIER: echte URL loggen
         Call<List<Veranstaltung>> call = api.getVeranstaltungen();
         Log.d(TAG, "Request URL: " + call.request().url());
 
@@ -95,27 +119,20 @@ public class SelectListActivity extends AppCompatActivity {
                     for (Veranstaltung v : veranstaltungen) {
                         titles.add(v.getVeranstaltungName());
                     }
-
                     adapter.notifyDataSetChanged();
                 } else {
-                    String msg = "Fehler beim Laden der Listen: " + response.code();
-                    Toast.makeText(SelectListActivity.this, msg, Toast.LENGTH_LONG).show();
-
-                    // ✅ optional: errorBody loggen (hilft oft extrem)
-                    try {
-                        if (response.errorBody() != null) {
-                            Log.e(TAG, "ErrorBody: " + response.errorBody().string());
-                        }
-                    } catch (Exception e) {
-                        Log.e(TAG, "ErrorBody read failed", e);
-                    }
+                    Toast.makeText(SelectListActivity.this,
+                            "Fehler beim Laden der Listen: " + response.code(),
+                            Toast.LENGTH_LONG).show();
                 }
             }
 
             @Override
             public void onFailure(Call<List<Veranstaltung>> call, Throwable t) {
                 Log.e(TAG, "Network failure", t);
-                Toast.makeText(SelectListActivity.this, "Netzwerkfehler: " + t.getMessage(), Toast.LENGTH_LONG).show();
+                Toast.makeText(SelectListActivity.this,
+                        "Netzwerkfehler: " + t.getMessage(),
+                        Toast.LENGTH_LONG).show();
             }
         });
     }

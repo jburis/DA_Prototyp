@@ -5,10 +5,11 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.widget.Button;
 import android.widget.TextView;
+
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.da_prototyp_ocr.R;
-import com.google.android.material.bottomnavigation.BottomNavigationView; // Import für BottomNavigationView
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -16,15 +17,14 @@ import java.util.Locale;
 
 public class StartActivity extends AppCompatActivity {
 
-    private TextView timeText;
-    private TextView dateText;
+    private TextView timeText, dateText;
     private final Handler handler = new Handler();
-// Denis war hier
+
     private final Runnable updateTimeRunnable = new Runnable() {
         @Override
         public void run() {
             updateTimeAndDate();
-            handler.postDelayed(this, 1000); // Aktualisiert jede Sekunde
+            handler.postDelayed(this, 1000);
         }
     };
 
@@ -36,41 +36,53 @@ public class StartActivity extends AppCompatActivity {
         timeText = findViewById(R.id.timeText);
         dateText = findViewById(R.id.dateText);
 
-        // Starte den Timer für Uhrzeit und Datum
-        handler.post(updateTimeRunnable);
-
-        // Button zum Öffnen der Listen-Auswahl
         Button btnList = findViewById(R.id.btn_list);
-        btnList.setOnClickListener(v -> {
-            Intent intent = new Intent(StartActivity.this, SelectListActivity.class);
-            startActivity(intent);
-        });
+        btnList.setOnClickListener(v ->
+                startActivity(new Intent(this, SelectListActivity.class)));
 
-        // BottomNavigationView Integration für Admin-Login
+        setupBottomNav();
+
+        handler.post(updateTimeRunnable);
+    }
+
+    private void setupBottomNav() {
+
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+
         bottomNav.setOnItemSelectedListener(item -> {
-            if (item.getItemId() == R.id.nav_admin) {
-                Intent intent = new Intent(StartActivity.this, AdminLoginActivity.class);
-                startActivity(intent);
+
+            int id = item.getItemId();
+
+            if (id == R.id.nav_home) {
                 return true;
             }
-            // Optional: weitere Tabs (Home, Personen, ...)
+
+            if (id == R.id.nav_list) {
+                startActivity(new Intent(this, SelectListActivity.class));
+                return true;
+            }
+
+            if (id == R.id.nav_admin) {
+                startActivity(new Intent(this, AdminLoginActivity.class));
+                return true;
+            }
+
             return false;
         });
     }
 
     private void updateTimeAndDate() {
-        Date now = new Date();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("EEEE, dd.MM.yyyy", Locale.GERMANY);
-        SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss", Locale.GERMANY);
+        SimpleDateFormat df = new SimpleDateFormat("EEEE, dd.MM.yyyy", Locale.GERMAN);
+        SimpleDateFormat tf = new SimpleDateFormat("HH:mm:ss", Locale.GERMAN);
 
-        dateText.setText(dateFormat.format(now));
-        timeText.setText(timeFormat.format(now));
+        Date now = new Date();
+        dateText.setText(df.format(now));
+        timeText.setText(tf.format(now));
     }
 
     @Override
     protected void onDestroy() {
-        handler.removeCallbacks(updateTimeRunnable);
         super.onDestroy();
+        handler.removeCallbacks(updateTimeRunnable);
     }
 }

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="18dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Teilnehmer hinzufügen"
+        android:textStyle="bold"
+        android:textSize="18sp"
+        android:textColor="#1A1A1A"
+        android:layout_marginBottom="12dp" />
+
+    <EditText
+        android:id="@+id/etFirstName"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:hint="Vorname"
+        android:textColor="#1A1A1A"
+        android:textColorHint="#8A8A8A"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:background="@android:drawable/edit_text" />
+
+    <EditText
+        android:id="@+id/etLastName"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="10dp"
+        android:hint="Nachname"
+        android:textColor="#1A1A1A"
+        android:textColorHint="#8A8A8A"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:background="@android:drawable/edit_text" />
+</LinearLayout>

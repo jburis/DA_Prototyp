@@ -1,60 +1,106 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:gravity="center_horizontal"
-    android:background="#FCFAFD"
-    android:padding="32dp">
+    android:orientation="vertical"
+    android:background="#F6F7F9">
 
-    <TextView
-        android:id="@+id/login_ueberschrift"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Admin-Bereich"
-        android:textColor="#111"
-        android:textStyle="bold"
-        android:textSize="28sp"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginBottom="12dp"/>
-
-    <TextView
-        android:id="@+id/login_subheadline"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Melden Sie sich an"
-        android:textColor="#222"
-        android:textStyle="bold"
-        android:textSize="20sp"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginBottom="28dp"/>
-
-    <EditText
-        android:id="@+id/et_user"
+    <!-- Header -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Admin"
-        android:textColorHint="#BBB"
-        android:background="#FFF"
-        android:layout_marginBottom="14dp"/>
+        android:orientation="vertical"
+        android:background="#FFFFFF"
+        android:elevation="6dp"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="18dp"
+        android:paddingBottom="16dp">
 
-    <EditText
-        android:id="@+id/et_pass"
+        <ImageView
+            android:id="@+id/logo"
+            android:layout_width="260dp"
+            android:layout_height="64dp"
+            android:layout_gravity="center"
+            android:scaleType="fitCenter"
+            android:src="@drawable/kwp_bild"
+            android:contentDescription="Logo"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="Admin-Bereich"
+            android:textStyle="bold"
+            android:textSize="22sp"
+            android:textColor="#1A1A1A"
+            android:gravity="center"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Melden Sie sich an"
+            android:textSize="14sp"
+            android:textColor="#6B7280"
+            android:gravity="center"/>
+    </LinearLayout>
+
+    <!-- Content -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Passwort"
-        android:textColorHint="#BBB"
-        android:background="#FFF"
-        android:inputType="textPassword"
-        android:layout_marginBottom="20dp"/>
+        android:orientation="vertical"
+        android:padding="20dp">
 
-    <Button
-        android:id="@+id/btn_login"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Anmelden"
-        android:textStyle="bold"
-        android:backgroundTint="#6C4BA6"
-        android:textColor="#FFF"
-        android:layout_marginTop="10dp"
-        android:layout_marginBottom="12dp"/>
+        <!-- Benutzer -->
+        <EditText
+            android:id="@+id/et_admin"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:hint="Admin"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:textSize="16sp"
+            android:textColor="#111827"
+            android:background="#FFFFFF"
+            android:elevation="2dp"/>
+
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="14dp"/>
+
+        <!-- Passwort -->
+        <EditText
+            android:id="@+id/et_password"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:hint="Passwort"
+            android:inputType="textPassword"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:textSize="16sp"
+            android:textColor="#111827"
+            android:background="#FFFFFF"
+            android:elevation="2dp"/>
+
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="18dp"/>
+
+        <!-- ORANGE BUTTON -->
+        <Button
+            android:id="@+id/btn_login"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:text="Anmelden"
+            android:textAllCaps="false"
+            android:textStyle="bold"
+            android:textSize="18sp"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#FF6600"
+            android:elevation="10dp"/>
+    </LinearLayout>
+
 </LinearLayout>

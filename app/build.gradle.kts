@@ -56,6 +56,7 @@ dependencies {
     implementation("com.google.mlkit:barcode-scanning:17.2.0")
 
     implementation(libs.appcompat)
+    implementation("androidx.cardview:cardview:1.0.0")
     implementation(libs.material)
     implementation(libs.activity)
     implementation(libs.constraintlayout)

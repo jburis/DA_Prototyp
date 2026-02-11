@@ -1,5 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
+    <!-- Basics -->
     <color name="white">#FFFFFFFF</color>
+    <color name="black">#FF000000</color>
+
+    <!-- Brand (aus deiner Palette) -->
+    <color name="kwp_rot">#E6332A</color>
+    <color name="pk_orange">#FF6600</color>
+
+    <!-- Neutrals / UI -->
+    <color name="kwp_bg">#F6F7F9</color>
+    <color name="kwp_surface">#FFFFFFFF</color>
+    <color name="kwp_text">#1A1A1A</color>
+    <color name="kwp_text_muted">#6B7280</color>
+    <color name="kwp_divider">#E6E6E6</color>
+
+    <!-- Accents (optional, falls du sie später brauchst) -->
+    <color name="kwp_mint">#38BAA2</color>
+    <color name="kwp_sky">#15BEF3</color>
 </resources>

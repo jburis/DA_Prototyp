@@ -6,8 +6,10 @@ import android.os.Bundle;
 import android.util.Log;
 import android.util.Size;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.LinearLayout;
+import android.widget.ImageButton;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -22,17 +24,8 @@ import com.example.da_prototyp_ocr.R;
 import com.example.da_prototyp_ocr.camera.CameraController;
 import com.example.da_prototyp_ocr.camera.OcrAnalyzer;
 import com.example.da_prototyp_ocr.camera.QrAnalyzer;
-import com.example.da_prototyp_ocr.dto.CheckinByBestellnummerRequest;
-import com.example.da_prototyp_ocr.logic.BuchungMatcher;
-import com.example.da_prototyp_ocr.logic.CheckInManager;
-import com.example.da_prototyp_ocr.logic.NameExtractor;
-import com.example.da_prototyp_ocr.model.Anwesenheit;
-import com.example.da_prototyp_ocr.model.Buchung;
-import com.example.da_prototyp_ocr.network.ApiClient;
-import com.example.da_prototyp_ocr.network.ApiService;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -41,119 +34,111 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
 
     private static final int REQ_CAMERA = 100;
     private static final String TAG = "AttendanceCheckIn";
-    private static final String ADMIN_TOKEN = "supersecret-token";
 
+    // Views
     private PreviewView previewView;
-    private Button scanBtn, qrBtn;
+    private View cameraCard;
     private TextView textResult;
-
-    // Confirmation UI
-    private LinearLayout confirmationLayout;
     private TextView attendeeNameText, attendeeSeatsText;
-    private Button btnMinus, btnPlus;
-    private TextView checkInCountText;
-    private Button confirmCheckInBtn;
 
-    // Toggle Button (muss im XML existieren: @+id/btnToggleCamera)
-    private Button toggleCameraBtn;
+    private Button btnToggleCamera;
+    private Button scanBtn;
+    private Button qrBtn;
+    private ImageButton btnAddManual;
 
-    // State
-    private int veranstaltungId = -1;
-    private int checkInAmount = 1;
-    private volatile boolean isProcessing = false;
-
-    private List<Buchung> allBuchungen = new ArrayList<>();
-    private Buchung currentScannedBuchung;
-
-    // Helpers
-    private final BuchungMatcher matcher = new BuchungMatcher();
-    private final CheckInManager checkInManager = new CheckInManager();
+    private ListView scannedList;
+    private ArrayAdapter<String> scannedAdapter;
+    private final List<String> scannedItems = new ArrayList<>();
 
     // Camera
     private final CameraController cameraController = new CameraController();
     private ExecutorService analyzerExecutor;
-
     private boolean isCameraOn = false;
+    private volatile boolean isProcessing = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Views
-        textResult = findViewById(R.id.textResult);
+        // Bind
         previewView = findViewById(R.id.previewView);
-        scanBtn = findViewById(R.id.scanBtn);
-        qrBtn = findViewById(R.id.btn_qr);
+        cameraCard = findViewById(R.id.cameraCard);
 
-        confirmationLayout = findViewById(R.id.confirmationLayout);
+        textResult = findViewById(R.id.textResult);
         attendeeNameText = findViewById(R.id.attendeeNameText);
         attendeeSeatsText = findViewById(R.id.attendeeSeatsText);
-        confirmCheckInBtn = findViewById(R.id.confirmCheckInBtn);
 
-        btnMinus = findViewById(R.id.btnMinus);
-        btnPlus = findViewById(R.id.btnPlus);
-        checkInCountText = findViewById(R.id.checkInCountText);
+        btnToggleCamera = findViewById(R.id.btnToggleCamera);
+        scanBtn = findViewById(R.id.scanBtn);
+        qrBtn = findViewById(R.id.btn_qr);
+        btnAddManual = findViewById(R.id.btnAddManual);
 
-        toggleCameraBtn = findViewById(R.id.btnToggleCamera);
-
-        confirmationLayout.setVisibility(View.GONE);
+        scannedList = findViewById(R.id.scannedList);
+        scannedAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, scannedItems);
+        scannedList.setAdapter(scannedAdapter);
 
         analyzerExecutor = Executors.newSingleThreadExecutor();
 
-        veranstaltungId = getIntent().getIntExtra("VERANSTALTUNG_ID", -1);
-        if (veranstaltungId == -1) {
-            Toast.makeText(this, "Fehler: Keine veranstaltung_id übergeben.", Toast.LENGTH_LONG).show();
-        }
+        // Dummy Daten (10 Stück)
+        seedDummyList();
 
-        setupPlusMinus();
+        // Kamera STARTET NICHT automatisch
+        setCameraUi(false);
 
         // Toggle Kamera
-        if (toggleCameraBtn != null) {
-            toggleCameraBtn.setOnClickListener(v -> toggleCamera());
-        }
-        updateToggleButtonUi();
+        btnToggleCamera.setOnClickListener(v -> toggleCamera());
 
-        // Camera permission + auto-start
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.CAMERA}, REQ_CAMERA);
-        } else {
-            startCamera();
-        }
-
+        // OCR Scan (demo: startet Analyzer)
         scanBtn.setOnClickListener(v -> {
-            confirmationLayout.setVisibility(View.GONE);
             if (!isCameraOn) {
                 Toast.makeText(this, "Kamera ist aus. Bitte Kamera einschalten.", Toast.LENGTH_SHORT).show();
                 return;
             }
-            loadBuchungenAndAnwesenheiten(this::startOneShotOcr);
+            startOneShotOcr();
         });
 
+        // QR Scan (demo: startet Analyzer)
         qrBtn.setOnClickListener(v -> {
-            confirmationLayout.setVisibility(View.GONE);
             if (!isCameraOn) {
                 Toast.makeText(this, "Kamera ist aus. Bitte Kamera einschalten.", Toast.LENGTH_SHORT).show();
                 return;
             }
-            loadBuchungenAndAnwesenheiten(this::startOneShotQr);
+            startOneShotQr();
         });
 
-        confirmCheckInBtn.setOnClickListener(v -> {
-            if (currentScannedBuchung != null) {
-                int amount = checkInManager.clampAmount(currentScannedBuchung, checkInAmount);
-                if (amount <= 0) {
-                    Toast.makeText(this, "Keine freien Plätze mehr.", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                performCheckInByBestellnummer(currentScannedBuchung.getBestellnummer(), amount);
-                confirmationLayout.setVisibility(View.GONE);
-                currentScannedBuchung = null;
-            }
+        // Plus-Symbol: Dummy-Teilnehmer hinzufügen (sichtbarer Test)
+        btnAddManual.setOnClickListener(v -> {
+            scannedItems.add(0, "Neuer Teilnehmer – 00000");
+            scannedAdapter.notifyDataSetChanged();
+            Toast.makeText(this, "Dummy hinzugefügt", Toast.LENGTH_SHORT).show();
+        });
+
+        // Optional: Long-Press löschen (praktisch)
+        scannedList.setOnItemLongClickListener((parent, view, position, id) -> {
+            String removed = scannedItems.remove(position);
+            scannedAdapter.notifyDataSetChanged();
+            Toast.makeText(this, "Gelöscht: " + removed, Toast.LENGTH_SHORT).show();
+            return true;
         });
     }
 
-    // =================== Kamera Toggle ===================
+    private void seedDummyList() {
+        scannedItems.clear();
+        scannedItems.add("Max Mustermann – 12345");
+        scannedItems.add("Anna Huber – 23456");
+        scannedItems.add("Peter Klein – 34567");
+        scannedItems.add("Sophie Wagner – 45678");
+        scannedItems.add("Lukas Mayer – 56789");
+        scannedItems.add("Julia Bauer – 67890");
+        scannedItems.add("Daniel Schmidt – 78901");
+        scannedItems.add("Lisa Fischer – 89012");
+        scannedItems.add("Martin Hofer – 90123");
+        scannedItems.add("Clara Weiss – 01234");
+        scannedAdapter.notifyDataSetChanged();
+    }
+
+    // ===== Kamera Toggle / UI =====
 
     private void toggleCamera() {
         if (isCameraOn) stopCamera();
@@ -168,33 +153,6 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
         startCamera();
     }
 
-    private void stopCamera() {
-        try {
-            ImageAnalysis analysis = cameraController.getImageAnalysis();
-            if (analysis != null) analysis.clearAnalyzer();
-
-            cameraController.stop();
-
-            isCameraOn = false;
-            isProcessing = false;
-
-            // Optional: Preview “optisch” aus
-            previewView.setVisibility(View.INVISIBLE);
-
-            updateToggleButtonUi();
-            Toast.makeText(this, "Kamera aus", Toast.LENGTH_SHORT).show();
-        } catch (Exception e) {
-            Log.e(TAG, "stopCamera failed", e);
-        }
-    }
-
-    private void updateToggleButtonUi() {
-        if (toggleCameraBtn == null) return;
-        toggleCameraBtn.setText(isCameraOn ? "Kamera AUS" : "Kamera AN");
-    }
-
-    // =================== Kamera Start + Analyzer ===================
-
     private void startCamera() {
         cameraController.start(
                 this,
@@ -203,300 +161,154 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
                 new Size(640, 480)
         );
 
-        previewView.setVisibility(View.VISIBLE);
         isCameraOn = true;
-        updateToggleButtonUi();
+        isProcessing = false;
+        setCameraUi(true);
+        textResult.setText("Kamera aktiv – halte QR/Bestellnummer ins Bild");
     }
 
-    private void startOneShotOcr() {
-        ImageAnalysis analysis = cameraController.getImageAnalysis();
-        if (analysis == null) return;
-        if (isProcessing) return;
-
-        isProcessing = true;
-
-        analysis.clearAnalyzer();
-        analysis.setAnalyzer(analyzerExecutor, new OcrAnalyzer(new OcrAnalyzer.Callback() {
-            @Override
-            public void onOcrText(@NonNull String fullText) {
-                String order = NameExtractor.extractOrder(fullText);
-
-                runOnUiThread(() -> {
-                    if (order == null) {
-                        textResult.setText("Keine Bestellnummer erkannt.\n\n" + fullText);
-                        Toast.makeText(AttendanceCheckInActivity.this, "Keine Bestellnummer im Text gefunden.", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    Buchung found = matcher.findByBestellnummer(allBuchungen, order);
-                    if (found == null) {
-                        textResult.setText("Fehler: Bestellnummer '" + order + "' nicht in der Liste gefunden.");
-                        confirmationLayout.setVisibility(View.GONE);
-                    } else {
-                        showConfirmation(found);
-                    }
-                });
-            }
-
-            @Override
-            public void onOcrError(@NonNull Exception e) {
-                runOnUiThread(() ->
-                        Toast.makeText(AttendanceCheckInActivity.this, "OCR-Fehler: " + e.getMessage(), Toast.LENGTH_SHORT).show()
-                );
-            }
-
-            @Override
-            public void onDone() {
-                isProcessing = false;
-                analysis.clearAnalyzer();
-            }
-        }));
-    }
-
-    private void startOneShotQr() {
-        ImageAnalysis analysis = cameraController.getImageAnalysis();
-        if (analysis == null) return;
-        if (isProcessing) return;
-
-        isProcessing = true;
-
-        analysis.clearAnalyzer();
-        analysis.setAnalyzer(analyzerExecutor, new QrAnalyzer(new QrAnalyzer.Callback() {
-            @Override
-            public void onQrRaw(@NonNull String rawValue) {
-                String participantName = NameExtractor.extractQRName(rawValue);
-
-                runOnUiThread(() -> {
-                    if (participantName == null) {
-                        textResult.setText("QR-Code hat nicht das erwartete Format.\n\n" + rawValue);
-                        Toast.makeText(AttendanceCheckInActivity.this, "QR-Code hat falsches Format.", Toast.LENGTH_LONG).show();
-                        return;
-                    }
-
-                    Buchung found = matcher.findByDisplayName(allBuchungen, participantName);
-                    if (found == null) {
-                        textResult.setText("Fehler: Teilnehmer '" + participantName + "' nicht in der Liste gefunden.");
-                        confirmationLayout.setVisibility(View.GONE);
-                    } else {
-                        showConfirmation(found);
-                    }
-                });
-            }
-
-            @Override
-            public void onQrEmpty() {
-                runOnUiThread(() ->
-                        Toast.makeText(AttendanceCheckInActivity.this, "Kein QR-Code erkannt", Toast.LENGTH_SHORT).show()
-                );
-            }
-
-            @Override
-            public void onQrError(@NonNull Exception e) {
-                Log.e(TAG, "QR Analyse fehlgeschlagen", e);
-            }
-
-            @Override
-            public void onDone() {
-                isProcessing = false;
-                analysis.clearAnalyzer();
-            }
-        }));
-    }
-
-    private void showConfirmation(Buchung buchung) {
-        currentScannedBuchung = buchung;
-
-        int free = checkInManager.freeSeats(buchung);
-        if (free < 1) {
-            confirmationLayout.setVisibility(View.GONE);
-            textResult.setText("Keine freien Plätze mehr für diese Buchung.");
-            Toast.makeText(this, "Keine freien Plätze mehr.", Toast.LENGTH_SHORT).show();
-            return;
+    private void stopCamera() {
+        try {
+            ImageAnalysis analysis = cameraController.getImageAnalysis();
+            if (analysis != null) analysis.clearAnalyzer();
+            cameraController.stop();
+        } catch (Exception e) {
+            Log.e(TAG, "stopCamera failed", e);
         }
 
-        checkInAmount = 1;
-        updateCheckInAmountUI();
-
-        attendeeNameText.setText("Teilnehmer: " + buchung.getDisplayName());
-        attendeeSeatsText.setText(
-                "Plätze: " + buchung.getAnzahlPlaetze()
-                        + " / Eingecheckt: " + buchung.getCheckedInCount()
-                        + " / Frei: " + free
-        );
-
-        confirmationLayout.setVisibility(View.VISIBLE);
-        textResult.setText("Bitte Check-in bestätigen.");
+        isCameraOn = false;
+        isProcessing = false;
+        setCameraUi(false);
+        textResult.setText("Kamera manuell starten und dann scannen");
     }
 
-    private void setupPlusMinus() {
-        btnMinus.setOnClickListener(v -> {
-            if (checkInManager.canDecrease(checkInAmount)) {
-                checkInAmount--;
-                updateCheckInAmountUI();
-            }
-        });
-
-        btnPlus.setOnClickListener(v -> {
-            if (currentScannedBuchung == null) return;
-
-            if (checkInManager.canIncrease(currentScannedBuchung, checkInAmount)) {
-                checkInAmount++;
-                updateCheckInAmountUI();
-            } else {
-                Toast.makeText(this, "Nicht mehr freie Plätze verfügbar.", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        updateCheckInAmountUI();
+    private void setCameraUi(boolean on) {
+        // WICHTIG: Preview ausblenden
+        cameraCard.setVisibility(on ? View.VISIBLE : View.GONE);
+        btnToggleCamera.setText(on ? "Kamera AUS" : "Kamera AN");
     }
 
-    private void updateCheckInAmountUI() {
-        checkInCountText.setText(String.valueOf(checkInAmount));
-    }
+    // ===== Permission =====
 
-    @Override
-    protected void onStop() {
-        super.onStop();
-        stopCamera();
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        try {
-            if (analyzerExecutor != null) analyzerExecutor.shutdown();
-        } catch (Exception ignored) {}
-    }
-
-    // ✅ FIX: richtige Signatur! (grantResults ist int[])
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQ_CAMERA && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            startCamera();
+            Toast.makeText(this, "Berechtigung OK. Du kannst Kamera einschalten.", Toast.LENGTH_SHORT).show();
         } else if (requestCode == REQ_CAMERA) {
             Toast.makeText(this, "Kamera-Berechtigung verweigert", Toast.LENGTH_LONG).show();
         }
     }
 
-    // =================== API / Data Load ===================
+    // ===== Analyzer: One-shot OCR =====
 
-    private void loadBuchungenAndAnwesenheiten(Runnable onFinished) {
-        if (veranstaltungId == -1) {
-            Toast.makeText(this, "Keine veranstaltung_id gesetzt.", Toast.LENGTH_SHORT).show();
+    private void startOneShotOcr() {
+        ImageAnalysis analysis = cameraController.getImageAnalysis();
+        if (analysis == null) {
+            Toast.makeText(this, "Kamera nicht bereit.", Toast.LENGTH_SHORT).show();
             return;
         }
+        if (isProcessing) return;
 
-        ApiService apiService = ApiClient.getClient().create(ApiService.class);
+        isProcessing = true;
+        analysis.clearAnalyzer();
 
-        apiService.getBuchungenByVeranstaltung(veranstaltungId)
-                .enqueue(new retrofit2.Callback<List<Buchung>>() {
-                    @Override
-                    public void onResponse(@NonNull retrofit2.Call<List<Buchung>> call,
-                                           @NonNull retrofit2.Response<List<Buchung>> response) {
-                        if (!response.isSuccessful() || response.body() == null) {
-                            runOnUiThread(() -> Toast.makeText(AttendanceCheckInActivity.this,
-                                    "Fehler beim Laden der Buchungen: " + response.code(),
-                                    Toast.LENGTH_LONG).show());
-                            return;
-                        }
+        analysis.setAnalyzer(analyzerExecutor, new OcrAnalyzer(new OcrAnalyzer.Callback() {
+            @Override
+            public void onOcrText(@NonNull String fullText) {
+                runOnUiThread(() -> {
+                    // Demo-Ausgabe (du kannst hier wieder deine Bestellnummer-Logik einsetzen)
+                    attendeeNameText.setText("Name: (OCR erkannt)");
+                    attendeeSeatsText.setText("Bestellnummer / Plätze: (OCR Text da)");
 
-                        List<Buchung> buchungen = response.body();
+                    scannedItems.add(0, "OCR Scan – " + System.currentTimeMillis());
+                    scannedAdapter.notifyDataSetChanged();
 
-                        apiService.getAnwesenheitenByVeranstaltung(veranstaltungId)
-                                .enqueue(new retrofit2.Callback<List<Anwesenheit>>() {
-                                    @Override
-                                    public void onResponse(@NonNull retrofit2.Call<List<Anwesenheit>> call2,
-                                                           @NonNull retrofit2.Response<List<Anwesenheit>> response2) {
-                                        runOnUiThread(() -> {
-                                            if (response2.isSuccessful() && response2.body() != null) {
-                                                HashMap<Integer, Integer> sums = new HashMap<>();
-                                                for (Anwesenheit a : response2.body()) {
-                                                    int key = a.getBuchungId();
-                                                    int cur = sums.containsKey(key) ? sums.get(key) : 0;
-                                                    sums.put(key, cur + a.getAnzahlEingecheckt());
-                                                }
-                                                for (Buchung b : buchungen) {
-                                                    int checked = sums.containsKey(b.getBuchungId()) ? sums.get(b.getBuchungId()) : 0;
-                                                    b.setCheckedInCount(checked);
-                                                }
-                                            } else {
-                                                for (Buchung b : buchungen) b.setCheckedInCount(0);
-                                            }
-
-                                            allBuchungen = buchungen;
-                                            if (onFinished != null) onFinished.run();
-                                        });
-                                    }
-
-                                    @Override
-                                    public void onFailure(@NonNull retrofit2.Call<List<Anwesenheit>> call2,
-                                                          @NonNull Throwable t) {
-                                        runOnUiThread(() -> {
-                                            for (Buchung b : buchungen) b.setCheckedInCount(0);
-                                            allBuchungen = buchungen;
-                                            if (onFinished != null) onFinished.run();
-                                            Toast.makeText(AttendanceCheckInActivity.this,
-                                                    "Anwesenheiten konnten nicht geladen werden (checkedIn=0).",
-                                                    Toast.LENGTH_LONG).show();
-                                        });
-                                    }
-                                });
-                    }
-
-                    @Override
-                    public void onFailure(@NonNull retrofit2.Call<List<Buchung>> call,
-                                          @NonNull Throwable t) {
-                        runOnUiThread(() -> Toast.makeText(AttendanceCheckInActivity.this,
-                                "Netzwerkfehler beim Laden der Buchungen: " + t.getMessage(),
-                                Toast.LENGTH_LONG).show());
-                    }
+                    textResult.setText("OCR Scan OK");
+                    finishProcessing(analysis);
                 });
+            }
+
+            @Override
+            public void onOcrError(@NonNull Exception e) {
+                runOnUiThread(() -> {
+                    Toast.makeText(AttendanceCheckInActivity.this, "OCR-Fehler: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    finishProcessing(analysis);
+                });
+            }
+
+            @Override
+            public void onDone() {
+                runOnUiThread(() -> finishProcessing(analysis));
+            }
+        }));
     }
 
-    private void performCheckInByBestellnummer(String bestellnummer, int anzahl) {
-        if (bestellnummer == null || bestellnummer.trim().isEmpty()) {
-            Toast.makeText(this, "Keine Bestellnummer für Check-in gefunden", Toast.LENGTH_SHORT).show();
+    // ===== Analyzer: One-shot QR =====
+
+    private void startOneShotQr() {
+        ImageAnalysis analysis = cameraController.getImageAnalysis();
+        if (analysis == null) {
+            Toast.makeText(this, "Kamera nicht bereit.", Toast.LENGTH_SHORT).show();
             return;
         }
-        if (veranstaltungId == -1) {
-            Toast.makeText(this, "Keine veranstaltung_id gesetzt.", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        if (anzahl < 1) anzahl = 1;
+        if (isProcessing) return;
 
-        final int finalAnzahl = anzahl;
+        isProcessing = true;
+        analysis.clearAnalyzer();
 
-        ApiService apiService = ApiClient.getClient().create(ApiService.class);
-        CheckinByBestellnummerRequest body = new CheckinByBestellnummerRequest(bestellnummer, finalAnzahl);
+        analysis.setAnalyzer(analyzerExecutor, new QrAnalyzer(new QrAnalyzer.Callback() {
+            @Override
+            public void onQrRaw(@NonNull String rawValue) {
+                runOnUiThread(() -> {
+                    attendeeNameText.setText("Name: (QR erkannt)");
+                    attendeeSeatsText.setText("Bestellnummer / Plätze: (QR raw)");
 
-        apiService.checkInByBestellnummer(ADMIN_TOKEN, veranstaltungId, body)
-                .enqueue(new retrofit2.Callback<Anwesenheit>() {
-                    @Override
-                    public void onResponse(@NonNull retrofit2.Call<Anwesenheit> call,
-                                           @NonNull retrofit2.Response<Anwesenheit> response) {
-                        runOnUiThread(() -> {
-                            if (response.isSuccessful()) {
-                                String msg = "Check-in (" + finalAnzahl + ") für Bestellnummer " + bestellnummer + " erfolgreich!";
-                                Toast.makeText(AttendanceCheckInActivity.this, msg, Toast.LENGTH_LONG).show();
-                                textResult.setText(msg);
-                                loadBuchungenAndAnwesenheiten(null);
-                            } else {
-                                String errorMessage = "API-Fehler beim Check-in. Code: " + response.code();
-                                Toast.makeText(AttendanceCheckInActivity.this, errorMessage, Toast.LENGTH_LONG).show();
-                                textResult.setText(errorMessage);
-                            }
-                        });
-                    }
+                    scannedItems.add(0, "QR Scan – " + rawValue);
+                    scannedAdapter.notifyDataSetChanged();
 
-                    @Override
-                    public void onFailure(@NonNull retrofit2.Call<Anwesenheit> call,
-                                          @NonNull Throwable t) {
-                        runOnUiThread(() -> {
-                            String failureMessage = "Netzwerkfehler: " + t.getMessage();
-                            Toast.makeText(AttendanceCheckInActivity.this, failureMessage, Toast.LENGTH_LONG).show();
-                            textResult.setText("Check-in fehlgeschlagen.\nBitte Netzwerkverbindung prüfen.");
-                        });
-                    }
+                    textResult.setText("QR Scan OK");
+                    finishProcessing(analysis);
                 });
+            }
+
+            @Override
+            public void onQrEmpty() {
+                runOnUiThread(() -> {
+                    Toast.makeText(AttendanceCheckInActivity.this, "Kein QR-Code erkannt", Toast.LENGTH_SHORT).show();
+                    finishProcessing(analysis);
+                });
+            }
+
+            @Override
+            public void onQrError(@NonNull Exception e) {
+                runOnUiThread(() -> {
+                    Toast.makeText(AttendanceCheckInActivity.this, "QR Fehler: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    finishProcessing(analysis);
+                });
+            }
+
+            @Override
+            public void onDone() {
+                runOnUiThread(() -> finishProcessing(analysis));
+            }
+        }));
+    }
+
+    private void finishProcessing(@NonNull ImageAnalysis analysis) {
+        try { analysis.clearAnalyzer(); } catch (Exception ignored) {}
+        isProcessing = false;
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (isCameraOn) stopCamera();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        try { if (analyzerExecutor != null) analyzerExecutor.shutdown(); } catch (Exception ignored) {}
     }
 }
