@@ -249,6 +249,89 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
+            <!-- ===== Confirmation / Popup (Plus/Minus + Confirm) ===== -->
+            <LinearLayout
+                android:id="@+id/confirmationLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="#FFFFFF"
+                android:elevation="6dp"
+                android:padding="14dp"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/confirmationTitleText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Check-in bestätigen"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:textColor="#1A1A1A"/>
+
+                <TextView
+                    android:id="@+id/confirmationSeatsText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Plätze: - | Eingecheckt: - | Frei: -"
+                    android:textSize="13sp"
+                    android:textColor="#444444"/>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/btnMinus"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:text="−"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textAllCaps="false"
+                        android:backgroundTint="#546E7A"
+                        android:textColor="#FFFFFF"/>
+
+                    <TextView
+                        android:id="@+id/checkInCountText"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:text="1"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="#1A1A1A"/>
+
+                    <Button
+                        android:id="@+id/btnPlus"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:text="+"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textAllCaps="false"
+                        android:backgroundTint="#FF6600"
+                        android:textColor="#FFFFFF"/>
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/confirmCheckInBtn"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:layout_marginTop="10dp"
+                    android:text="Check-in bestätigen"
+                    android:textAllCaps="false"
+                    android:textStyle="bold"
+                    android:textColor="#FFFFFF"
+                    android:backgroundTint="#34A853"/>
+            </LinearLayout>
+
         </LinearLayout>
     </LinearLayout>
 
