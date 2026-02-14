@@ -9,6 +9,7 @@
     android:fillViewport="true">
 
     <LinearLayout
+        android:id="@+id/contentRoot"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
@@ -16,6 +17,7 @@
 
         <!-- ===== Header ===== -->
         <LinearLayout
+            android:id="@+id/headerBlock"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
@@ -58,6 +60,7 @@
 
         <!-- Content padding -->
         <LinearLayout
+            android:id="@+id/mainControlsBlock"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
@@ -65,6 +68,7 @@
 
             <!-- ===== Top Buttons Row ===== -->
             <LinearLayout
+                android:id="@+id/topButtonsRow"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal">
@@ -113,11 +117,12 @@
             <androidx.cardview.widget.CardView
                 android:id="@+id/cameraCard"
                 android:layout_width="match_parent"
-                android:layout_height="260dp"
+                android:layout_height="360dp"
                 android:layout_marginTop="12dp"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="6dp"
-                app:cardUseCompatPadding="true">
+                app:cardUseCompatPadding="true"
+                android:visibility="gone">
 
                 <FrameLayout
                     android:layout_width="match_parent"
@@ -145,60 +150,9 @@
                 </FrameLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- ===== Aktueller Scan Card ===== -->
+            <!-- ===== Gescannt Card + Liste ===== -->
             <androidx.cardview.widget.CardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="6dp"
-                app:cardUseCompatPadding="true">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="14dp">
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Aktueller Scan"
-                        android:textStyle="bold"
-                        android:textSize="16sp"
-                        android:textColor="#1A1A1A"/>
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="Noch kein Scan durchgeführt."
-                        android:textSize="13sp"
-                        android:textColor="#607D8B"/>
-
-                    <TextView
-                        android:id="@+id/attendeeNameText"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:text="Name: –"
-                        android:textStyle="bold"
-                        android:textSize="14sp"
-                        android:textColor="#1A1A1A"/>
-
-                    <TextView
-                        android:id="@+id/attendeeSeatsText"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="Bestellnummer / Plätze: –"
-                        android:textSize="13sp"
-                        android:textColor="#1A1A1A"/>
-                </LinearLayout>
-            </androidx.cardview.widget.CardView>
-
-            <!-- ===== Gescannt Card + Liste (scrollbar) ===== -->
-            <androidx.cardview.widget.CardView
+                android:id="@+id/scannedCard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
@@ -249,16 +203,16 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- ===== Confirmation / Popup (Plus/Minus + Confirm) ===== -->
+            <!-- ===== Confirmation Popup ===== -->
             <LinearLayout
                 android:id="@+id/confirmationLayout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
+                android:orientation="vertical"
+                android:padding="14dp"
                 android:background="#FFFFFF"
                 android:elevation="6dp"
-                android:padding="14dp"
-                android:orientation="vertical"
                 android:visibility="gone">
 
                 <TextView
@@ -277,25 +231,22 @@
                     android:layout_marginTop="6dp"
                     android:text="Plätze: - | Eingecheckt: - | Frei: -"
                     android:textSize="13sp"
-                    android:textColor="#444444"/>
+                    android:textColor="#1A1A1A"/>
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
+                    android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:layout_marginTop="10dp">
 
                     <Button
                         android:id="@+id/btnMinus"
                         android:layout_width="48dp"
                         android:layout_height="48dp"
-                        android:text="−"
-                        android:textSize="20sp"
-                        android:textStyle="bold"
+                        android:text="-"
                         android:textAllCaps="false"
-                        android:backgroundTint="#546E7A"
-                        android:textColor="#FFFFFF"/>
+                        android:textStyle="bold"/>
 
                     <TextView
                         android:id="@+id/checkInCountText"
@@ -304,8 +255,8 @@
                         android:layout_weight="1"
                         android:gravity="center"
                         android:text="1"
-                        android:textSize="18sp"
                         android:textStyle="bold"
+                        android:textSize="18sp"
                         android:textColor="#1A1A1A"/>
 
                     <Button
@@ -313,11 +264,8 @@
                         android:layout_width="48dp"
                         android:layout_height="48dp"
                         android:text="+"
-                        android:textSize="20sp"
-                        android:textStyle="bold"
                         android:textAllCaps="false"
-                        android:backgroundTint="#FF6600"
-                        android:textColor="#FFFFFF"/>
+                        android:textStyle="bold"/>
                 </LinearLayout>
 
                 <Button
@@ -330,6 +278,7 @@
                     android:textStyle="bold"
                     android:textColor="#FFFFFF"
                     android:backgroundTint="#34A853"/>
+
             </LinearLayout>
 
         </LinearLayout>

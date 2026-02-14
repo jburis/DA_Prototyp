@@ -46,24 +46,23 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
     private static final String TAG = "AttendanceCheckIn";
     private static final String ADMIN_TOKEN = "supersecret-token";
 
-    // ===== Views (IDs müssen im activity_main.xml existieren) =====
+    // ===== Views =====
     private PreviewView previewView;
     private View cameraCard;
+
     private TextView textResult;
 
-    private Button scanBtn;        // Buchungsnr
-    private Button qrBtn;          // QR-Code
+    private Button scanBtn;
+    private Button qrBtn;
     private Button btnToggleCamera;
 
-    private TextView attendeeNameText;
-    private TextView attendeeSeatsText;
-
+    private View scannedCard;
     private ImageButton btnAddManual;
     private ListView scannedList;
     private ArrayAdapter<String> scannedAdapter;
     private final List<String> scannedItems = new ArrayList<>();
 
-    // Confirmation Popup (muss im XML existieren - siehe Block unten)
+    // Confirmation Popup
     private LinearLayout confirmationLayout;
     private TextView confirmationTitleText;
     private TextView confirmationSeatsText;
@@ -93,24 +92,23 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // ===== Bind =====
+        // Bind
         previewView = findViewById(R.id.previewView);
         cameraCard = findViewById(R.id.cameraCard);
+
         textResult = findViewById(R.id.textResult);
 
         scanBtn = findViewById(R.id.scanBtn);
         qrBtn = findViewById(R.id.btn_qr);
         btnToggleCamera = findViewById(R.id.btnToggleCamera);
 
-        attendeeNameText = findViewById(R.id.attendeeNameText);
-        attendeeSeatsText = findViewById(R.id.attendeeSeatsText);
-
+        scannedCard = findViewById(R.id.scannedCard);
         btnAddManual = findViewById(R.id.btnAddManual);
+
         scannedList = findViewById(R.id.scannedList);
         scannedAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, scannedItems);
         scannedList.setAdapter(scannedAdapter);
 
-        // Confirmation Layout (Popup)
         confirmationLayout = findViewById(R.id.confirmationLayout);
         confirmationTitleText = findViewById(R.id.confirmationTitleText);
         confirmationSeatsText = findViewById(R.id.confirmationSeatsText);
@@ -119,8 +117,6 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
         checkInCountText = findViewById(R.id.checkInCountText);
         confirmCheckInBtn = findViewById(R.id.confirmCheckInBtn);
 
-        confirmationLayout.setVisibility(View.GONE);
-
         analyzerExecutor = Executors.newSingleThreadExecutor();
 
         veranstaltungId = getIntent().getIntExtra("VERANSTALTUNG_ID", -1);
@@ -128,13 +124,13 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
             Toast.makeText(this, "Fehler: Keine veranstaltung_id übergeben.", Toast.LENGTH_LONG).show();
         }
 
-        // Kamera startet NICHT automatisch – so wie du es wolltest
-        setCameraUi(false);
-
-        // Dummy-Liste nur als UI-Test (kannst du später entfernen)
         seedDummyList();
 
-        // ===== Listeners =====
+        // Startzustand: Kamera AUS
+        hideConfirmation();
+        setCameraUi(false);
+
+        // Listeners
         btnToggleCamera.setOnClickListener(v -> toggleCamera());
 
         scanBtn.setOnClickListener(v -> {
@@ -160,7 +156,6 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
             scannedAdapter.notifyDataSetChanged();
         });
 
-        // optional: long press löscht Eintrag
         scannedList.setOnItemLongClickListener((parent, view, position, id) -> {
             scannedItems.remove(position);
             scannedAdapter.notifyDataSetChanged();
@@ -185,7 +180,6 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
     }
 
     // =================== Dummy List ===================
-
     private void seedDummyList() {
         scannedItems.clear();
         scannedItems.add("Max Mustermann – 12345");
@@ -202,7 +196,6 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
     }
 
     // =================== Kamera ===================
-
     private void toggleCamera() {
         if (isCameraOn) stopCamera();
         else startCameraSafe();
@@ -226,6 +219,8 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
 
         isCameraOn = true;
         isProcessing = false;
+
+        // ✅ Kamera an: nur Kamera + Buttons sichtbar, Rest weg
         setCameraUi(true);
         textResult.setText("Kamera aktiv – halte QR/Bestellnummer ins Bild");
     }
@@ -241,13 +236,26 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
 
         isCameraOn = false;
         isProcessing = false;
+
+        // ✅ Kamera aus: Liste wieder sichtbar
         setCameraUi(false);
         textResult.setText("Kamera manuell starten und dann scannen");
+        hideConfirmation();
     }
 
+    /**
+     * on=true  => Kamera sichtbar, Rest "ablenkende" Bereiche verstecken
+     * on=false => Kamera aus, Rest wieder anzeigen
+     */
     private void setCameraUi(boolean on) {
-        // Preview komplett ausblendbar
         if (cameraCard != null) cameraCard.setVisibility(on ? View.VISIBLE : View.GONE);
+
+        // ablenkende Bereiche ausblenden während Kamera läuft
+        if (scannedCard != null) scannedCard.setVisibility(on ? View.GONE : View.VISIBLE);
+
+        // Popup nur zeigen, wenn Kamera aus (sonst ruhig/clean)
+        if (confirmationLayout != null && on) confirmationLayout.setVisibility(View.GONE);
+
         btnToggleCamera.setText(on ? "Kamera AUS" : "Kamera AN");
     }
 
@@ -264,8 +272,7 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
         }
     }
 
-    // =================== Analyzer OCR/QR (ALTE FUNKTION) ===================
-
+    // =================== Analyzer OCR/QR ===================
     private void startOneShotOcr() {
         ImageAnalysis analysis = cameraController.getImageAnalysis();
         if (analysis == null) return;
@@ -290,12 +297,14 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
                     Buchung found = matcher.findByBestellnummer(allBuchungen, order);
                     if (found == null) {
                         textResult.setText("Nicht gefunden: " + order);
-                        hideConfirmation();
                         finishProcessing(analysis);
                         return;
                     }
 
+                    // ✅ Treffer: Kamera aus -> Popup anzeigen + Liste sichtbar
+                    stopCamera();
                     showConfirmation(found);
+
                     finishProcessing(analysis);
                 });
             }
@@ -339,12 +348,14 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
                     Buchung found = matcher.findByDisplayName(allBuchungen, participantName);
                     if (found == null) {
                         textResult.setText("Nicht gefunden: " + participantName);
-                        hideConfirmation();
                         finishProcessing(analysis);
                         return;
                     }
 
+                    // ✅ Treffer: Kamera aus -> Popup anzeigen
+                    stopCamera();
                     showConfirmation(found);
+
                     finishProcessing(analysis);
                 });
             }
@@ -377,8 +388,7 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
         isProcessing = false;
     }
 
-    // =================== Confirmation Popup (ALTE FUNKTION) ===================
-
+    // =================== Confirmation Popup ===================
     private void showConfirmation(@NonNull Buchung buchung) {
         currentScannedBuchung = buchung;
 
@@ -390,20 +400,10 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
             return;
         }
 
-        // oben im "Aktueller Scan"
-        attendeeNameText.setText("Teilnehmer: " + safeStr(buchung.getDisplayName()));
-        attendeeSeatsText.setText(
-                "Bestellnr.: " + safeStr(buchung.getBestellnummer())
-                        + " | Plätze: " + buchung.getAnzahlPlaetze()
-                        + " | Eingecheckt: " + buchung.getCheckedInCount()
-                        + " | Frei: " + free
-        );
-
-        // Popup
         checkInAmount = 1;
         updateCheckInAmountUI();
 
-        confirmationTitleText.setText("Check-in bestätigen");
+        confirmationTitleText.setText(safeStr(buchung.getDisplayName()) + " – " + safeStr(buchung.getBestellnummer()));
         confirmationSeatsText.setText(
                 "Plätze: " + buchung.getAnzahlPlaetze()
                         + " | Eingecheckt: " + buchung.getCheckedInCount()
@@ -444,8 +444,7 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
         checkInCountText.setText(String.valueOf(checkInAmount));
     }
 
-    // =================== API / Data Load (ALTE FUNKTION) ===================
-
+    // =================== API / Data Load ===================
     private void loadBuchungenAndAnwesenheiten(Runnable onFinished) {
         if (veranstaltungId == -1) {
             Toast.makeText(this, "Keine veranstaltung_id gesetzt.", Toast.LENGTH_SHORT).show();
@@ -545,7 +544,6 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
                                 Toast.makeText(AttendanceCheckInActivity.this, msg, Toast.LENGTH_LONG).show();
                                 textResult.setText(msg);
 
-                                // Liste updaten + nach Checkin neu laden
                                 scannedItems.add(0, safeStr(currentScannedBuchung != null ? currentScannedBuchung.getDisplayName() : "")
                                         + " – " + bestellnummer + " (+ " + finalAnzahl + ")");
                                 scannedAdapter.notifyDataSetChanged();
