@@ -34,7 +34,7 @@ android {
 val camerax_version = "1.3.4"
 
 dependencies {
-
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
     // Retrofit für Netzwerkanfragen
     implementation("com.squareup.retrofit2:retrofit:2.9.0")

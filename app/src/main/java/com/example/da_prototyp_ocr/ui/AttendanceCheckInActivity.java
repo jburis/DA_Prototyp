@@ -4,11 +4,14 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.util.Size;
 import android.view.View;
-import android.widget.ArrayAdapter;
+import android.widget.AdapterView;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ListView;
@@ -21,6 +24,7 @@ import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.view.PreviewView;
 import androidx.core.content.ContextCompat;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.example.da_prototyp_ocr.R;
 import com.example.da_prototyp_ocr.camera.CameraController;
@@ -36,6 +40,8 @@ import com.example.da_prototyp_ocr.network.ApiClient;
 import com.example.da_prototyp_ocr.network.ApiService;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -58,9 +64,10 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
     private Button btnToggleCamera;
 
     private ImageButton btnAddManual;
-    private ListView scannedList;
-    private ArrayAdapter<String> scannedAdapter;
-    private final List<String> scannedItems = new ArrayList<>();
+    private EditText searchField;
+    private ListView teilnehmerList;
+    private ParticipantAdapter teilnehmerAdapter;
+    private SwipeRefreshLayout swipeRefreshLayout;
 
     // Bottom overlay popup
     private View dimView;
@@ -80,6 +87,7 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
     private volatile boolean isProcessing = false;
 
     private List<Buchung> allBuchungen = new ArrayList<>();
+    private List<Buchung> filteredBuchungen = new ArrayList<>();
     private Buchung currentScannedBuchung;
 
     // Helpers
@@ -107,9 +115,12 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
         btnToggleCamera = findViewById(R.id.btnToggleCamera);
 
         btnAddManual = findViewById(R.id.btnAddManual);
-        scannedList = findViewById(R.id.scannedList);
-        scannedAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, scannedItems);
-        scannedList.setAdapter(scannedAdapter);
+        searchField = findViewById(R.id.searchField);
+        teilnehmerList = findViewById(R.id.scannedList);
+        swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
+
+        teilnehmerAdapter = new ParticipantAdapter(this, filteredBuchungen);
+        teilnehmerList.setAdapter(teilnehmerAdapter);
 
         dimView = findViewById(R.id.dimView);
         confirmationLayout = findViewById(R.id.confirmationLayout);
@@ -139,8 +150,8 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
         setCameraUi(false);
         hideConfirmation();
 
-        // Dummy Liste (kannst du später entfernen)
-        seedDummyList();
+        // Teilnehmerliste beim Start laden
+        loadBuchungenAndAnwesenheiten(null);
 
         // ===== Listeners =====
         btnToggleCamera.setOnClickListener(v -> toggleCamera());
@@ -163,18 +174,44 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
             loadBuchungenAndAnwesenheiten(this::startOneShotQr);
         });
 
-        // Plus oben: Dummy Eintrag (optional)
+        // Plus Button: Neue Buchung hinzufügen
         btnAddManual.setOnClickListener(v -> {
-            scannedItems.add(0, "Neuer Teilnehmer – 00000");
-            scannedAdapter.notifyDataSetChanged();
+            // TODO: Dialog oder neue Activity zum Hinzufügen einer Buchung öffnen
+            Toast.makeText(this, "Neue Buchung hinzufügen - Feature kommt bald", Toast.LENGTH_SHORT).show();
         });
 
-        // Long press löscht
-        scannedList.setOnItemLongClickListener((parent, view, position, id) -> {
-            scannedItems.remove(position);
-            scannedAdapter.notifyDataSetChanged();
-            return true;
+        // Suchfunktion
+        searchField.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                filterTeilnehmer(s.toString());
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {}
         });
+
+        // Teilnehmer anklicken öffnet Confirmation Popup
+        teilnehmerList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                Buchung selectedBuchung = filteredBuchungen.get(position);
+                showConfirmation(selectedBuchung);
+            }
+        });
+
+        // Pull-to-Refresh
+        if (swipeRefreshLayout != null) {
+            swipeRefreshLayout.setOnRefreshListener(() -> {
+                loadBuchungenAndAnwesenheiten(() -> {
+                    swipeRefreshLayout.setRefreshing(false);
+                    Toast.makeText(AttendanceCheckInActivity.this, "Liste aktualisiert", Toast.LENGTH_SHORT).show();
+                });
+            });
+        }
 
         // Dim klick schließt Popup
         if (dimView != null) dimView.setOnClickListener(v -> hideConfirmation());
@@ -216,20 +253,48 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
         return Math.round(value * density);
     }
 
-    // ===== Dummy List =====
-    private void seedDummyList() {
-        scannedItems.clear();
-        scannedItems.add("Max Mustermann – 12345");
-        scannedItems.add("Anna Huber – 23456");
-        scannedItems.add("Peter Klein – 34567");
-        scannedItems.add("Sophie Wagner – 45678");
-        scannedItems.add("Lukas Mayer – 56789");
-        scannedItems.add("Julia Bauer – 67890");
-        scannedItems.add("Daniel Schmidt – 78901");
-        scannedItems.add("Lisa Fischer – 89012");
-        scannedItems.add("Martin Hofer – 90123");
-        scannedItems.add("Clara Weiss – 01234");
-        scannedAdapter.notifyDataSetChanged();
+    // ===== Filter Funktion =====
+    private void filterTeilnehmer(String query) {
+        filteredBuchungen.clear();
+
+        if (query == null || query.trim().isEmpty()) {
+            filteredBuchungen.addAll(allBuchungen);
+        } else {
+            String lowerQuery = query.toLowerCase().trim();
+            for (Buchung buchung : allBuchungen) {
+                String displayName = safeStr(buchung.getDisplayName()).toLowerCase();
+                String bestellnr = safeStr(buchung.getBestellnummer()).toLowerCase();
+                String vorname = safeStr(buchung.getVorname()).toLowerCase();
+                String nachname = safeStr(buchung.getNachname()).toLowerCase();
+
+                if (displayName.contains(lowerQuery) ||
+                        bestellnr.contains(lowerQuery) ||
+                        vorname.contains(lowerQuery) ||
+                        nachname.contains(lowerQuery)) {
+                    filteredBuchungen.add(buchung);
+                }
+            }
+        }
+
+        // Alphabetisch sortieren nach Namen
+        Collections.sort(filteredBuchungen, new Comparator<Buchung>() {
+            @Override
+            public int compare(Buchung b1, Buchung b2) {
+                String name1 = b1.getDisplayName();
+                if (name1 == null || name1.trim().isEmpty()) {
+                    name1 = b1.getVorname() + " " + b1.getNachname();
+                }
+
+                String name2 = b2.getDisplayName();
+                if (name2 == null || name2.trim().isEmpty()) {
+                    name2 = b2.getVorname() + " " + b2.getNachname();
+                }
+
+                return name1.compareToIgnoreCase(name2);
+            }
+        });
+
+        teilnehmerAdapter.notifyDataSetChanged();
     }
 
     // ===== Kamera UI: wenn Kamera AN -> Gescannt-Kachel ausblenden =====
@@ -516,6 +581,7 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
                                             }
 
                                             allBuchungen = buchungen;
+                                            filterTeilnehmer(searchField.getText().toString());
                                             if (onFinished != null) onFinished.run();
                                         });
                                     }
@@ -526,6 +592,7 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
                                         runOnUiThread(() -> {
                                             for (Buchung b : buchungen) b.setCheckedInCount(0);
                                             allBuchungen = buchungen;
+                                            filterTeilnehmer(searchField.getText().toString());
                                             if (onFinished != null) onFinished.run();
                                             Toast.makeText(AttendanceCheckInActivity.this,
                                                     "Anwesenheiten konnten nicht geladen werden (checkedIn=0).",
@@ -571,11 +638,7 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
                                 Toast.makeText(AttendanceCheckInActivity.this, msg, Toast.LENGTH_LONG).show();
                                 textResult.setText(msg);
 
-                                // optional: in Liste eintragen
-                                scannedItems.add(0, safeStr(currentScannedBuchung != null ? currentScannedBuchung.getDisplayName() : "")
-                                        + " – " + bestellnummer + " (+ " + finalAnzahl + ")");
-                                scannedAdapter.notifyDataSetChanged();
-
+                                // Liste neu laden nach erfolgreichem Check-in
                                 loadBuchungenAndAnwesenheiten(null);
                             } else {
                                 String errorMessage = "API-Fehler beim Check-in. Code: " + response.code();
