@@ -3,10 +3,7 @@
         android:id="@+id/nav_home"
         android:icon="@android:drawable/ic_menu_view"
         android:title="Home"/>
-    <item
-        android:id="@+id/nav_persons"
-        android:icon="@android:drawable/ic_menu_agenda"
-        android:title="Personen"/>
+
     <item
         android:id="@+id/nav_admin"
         android:icon="@android:drawable/ic_menu_manage"
