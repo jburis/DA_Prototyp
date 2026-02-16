@@ -20,6 +20,7 @@ import retrofit2.http.POST;
 import retrofit2.http.Path;
 import retrofit2.http.Query;
 import retrofit2.http.Header;
+import retrofit2.http.DELETE;
 
 public interface ApiService {
 
@@ -105,4 +106,15 @@ public interface ApiService {
             @Path("veranstaltung_id") int veranstaltungId,
             @Body CheckinByNameRequest body
     );
+
+    // 5) Neue Buchung erstellen (requires admin token)
+    @POST("api/buchungen")
+    Call<Buchung> createBuchung(
+            @Header("x-admin-token") String adminToken,
+            @Body Buchung buchung
+    );
+
+    // 6) Buchung löschen
+    @DELETE("api/buchungen/{buchung_id}")
+    Call<Void> deleteBuchung(@Path("buchung_id") int buchungId);
 }

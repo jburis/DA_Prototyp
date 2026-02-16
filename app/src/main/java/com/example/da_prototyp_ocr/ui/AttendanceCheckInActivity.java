@@ -19,6 +19,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageAnalysis;
@@ -175,10 +176,7 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
         });
 
         // Plus Button: Neue Buchung hinzufügen
-        btnAddManual.setOnClickListener(v -> {
-            // TODO: Dialog oder neue Activity zum Hinzufügen einer Buchung öffnen
-            Toast.makeText(this, "Neue Buchung hinzufügen - Feature kommt bald", Toast.LENGTH_SHORT).show();
-        });
+        btnAddManual.setOnClickListener(v -> showAddParticipantDialog());
 
         // Suchfunktion
         searchField.addTextChangedListener(new TextWatcher() {
@@ -303,6 +301,10 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
 
         // weniger Ablenkung: Liste ausblenden wenn Kamera an
         if (scannedCard != null) scannedCard.setVisibility(on ? View.GONE : View.VISIBLE);
+
+        // Scan-Buttons ausblenden wenn Kamera an
+        if (scanBtn != null) scanBtn.setVisibility(on ? View.VISIBLE : View.GONE);
+        if (qrBtn != null) qrBtn.setVisibility(on ? View.VISIBLE : View.GONE);
 
         btnToggleCamera.setText(on ? "Kamera AUS" : "Kamera AN");
         textResult.setText(on ? "Kamera aktiv – halte QR/Bestellnummer ins Bild"
@@ -653,6 +655,118 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
                         runOnUiThread(() -> {
                             Toast.makeText(AttendanceCheckInActivity.this, "Netzwerkfehler: " + t.getMessage(), Toast.LENGTH_LONG).show();
                             textResult.setText("Check-in fehlgeschlagen.\nBitte Netzwerkverbindung prüfen.");
+                        });
+                    }
+                });
+    }
+
+    private void showAddParticipantDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Neuen Teilnehmer hinzufügen");
+
+        // Custom layout for the dialog
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 40, 50, 10);
+
+        // Vorname
+        final EditText inputVorname = new EditText(this);
+        inputVorname.setHint("Vorname");
+        layout.addView(inputVorname);
+
+        // Nachname
+        final EditText inputNachname = new EditText(this);
+        inputNachname.setHint("Nachname");
+        layout.addView(inputNachname);
+
+        // Anzahl Plätze
+        final EditText inputPlaetze = new EditText(this);
+        inputPlaetze.setHint("Anzahl Plätze");
+        inputPlaetze.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        inputPlaetze.setText("1");
+        layout.addView(inputPlaetze);
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("Hinzufügen", (dialog, which) -> {
+            String vorname = inputVorname.getText().toString().trim();
+            String nachname = inputNachname.getText().toString().trim();
+            String plaetzeStr = inputPlaetze.getText().toString().trim();
+
+            // Validierung
+            if (vorname.isEmpty() || nachname.isEmpty()) {
+                Toast.makeText(this, "Vor- und Nachname sind erforderlich", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            int anzahlPlaetze = 1;
+            try {
+                anzahlPlaetze = Integer.parseInt(plaetzeStr);
+                if (anzahlPlaetze < 1) anzahlPlaetze = 1;
+            } catch (NumberFormatException e) {
+                anzahlPlaetze = 1;
+            }
+
+            // Buchung erstellen via API (Bestellnummer und E-Mail werden automatisch generiert)
+            createNewBuchung(vorname, nachname, anzahlPlaetze);
+        });
+
+        builder.setNegativeButton("Abbrechen", (dialog, which) -> dialog.cancel());
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+    }
+
+    private void createNewBuchung(String vorname, String nachname, int anzahlPlaetze) {
+        if (veranstaltungId == -1) {
+            Toast.makeText(this, "Keine veranstaltung_id gesetzt.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Bestellnummer automatisch generieren (6-stellige Zufallszahl)
+        int randomNumber = 100000 + new java.util.Random().nextInt(900000);
+        String generatedBestellnummer = "#" + randomNumber;
+
+        // E-Mail automatisch generieren (vorname.nachname@generated.local)
+        String generatedEmail = vorname.toLowerCase() + "." + nachname.toLowerCase() + "@generated.local";
+
+        ApiService apiService = ApiClient.getClient().create(ApiService.class);
+
+        // DTO für neue Buchung erstellen
+        Buchung newBuchung = new Buchung();
+        newBuchung.setVorname(vorname);
+        newBuchung.setNachname(nachname);
+        newBuchung.setBestellnummer(generatedBestellnummer);
+        newBuchung.setKontakt(generatedEmail);
+        newBuchung.setAnzahlPlaetze(anzahlPlaetze);
+        newBuchung.setVeranstaltungId(veranstaltungId);
+
+        // API Call
+        apiService.createBuchung(ADMIN_TOKEN, newBuchung)
+                .enqueue(new retrofit2.Callback<Buchung>() {
+                    @Override
+                    public void onResponse(@NonNull retrofit2.Call<Buchung> call,
+                                           @NonNull retrofit2.Response<Buchung> response) {
+                        runOnUiThread(() -> {
+                            if (response.isSuccessful()) {
+                                Toast.makeText(AttendanceCheckInActivity.this,
+                                        "Teilnehmer erfolgreich hinzugefügt!\nBestellnr.: " + generatedBestellnummer,
+                                        Toast.LENGTH_LONG).show();
+
+                                // Liste neu laden
+                                loadBuchungenAndAnwesenheiten(null);
+                            } else {
+                                Toast.makeText(AttendanceCheckInActivity.this,
+                                        "Fehler beim Hinzufügen: " + response.code(), Toast.LENGTH_LONG).show();
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull retrofit2.Call<Buchung> call, @NonNull Throwable t) {
+                        runOnUiThread(() -> {
+                            Toast.makeText(AttendanceCheckInActivity.this,
+                                    "Netzwerkfehler: " + t.getMessage(), Toast.LENGTH_LONG).show();
                         });
                     }
                 });

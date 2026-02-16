@@ -28,6 +28,7 @@ public class Buchung {
     // NICHT von der API geliefert: berechnen wir clientseitig
     private int checkedInCount;
 
+    // ===== GETTERS =====
     public int getBuchungId() { return buchungId; }
     public int getVeranstaltungId() { return veranstaltungId; }
     public String getBestellnummer() { return bestellnummer; }
@@ -37,9 +38,18 @@ public class Buchung {
     public int getAnzahlPlaetze() { return anzahlPlaetze; }
 
     public int getCheckedInCount() { return checkedInCount; }
-    public void setCheckedInCount(int checkedInCount) { this.checkedInCount = checkedInCount; }
 
     public String getDisplayName() {
         return (vorname == null ? "" : vorname) + " " + (nachname == null ? "" : nachname);
     }
+
+    // ===== SETTERS (needed for creating new Buchung) =====
+    public void setBuchungId(int buchungId) { this.buchungId = buchungId; }
+    public void setVeranstaltungId(int veranstaltungId) { this.veranstaltungId = veranstaltungId; }
+    public void setBestellnummer(String bestellnummer) { this.bestellnummer = bestellnummer; }
+    public void setVorname(String vorname) { this.vorname = vorname; }
+    public void setNachname(String nachname) { this.nachname = nachname; }
+    public void setKontakt(String kontakt) { this.kontakt = kontakt; }
+    public void setAnzahlPlaetze(int anzahlPlaetze) { this.anzahlPlaetze = anzahlPlaetze; }
+    public void setCheckedInCount(int checkedInCount) { this.checkedInCount = checkedInCount; }
 }
