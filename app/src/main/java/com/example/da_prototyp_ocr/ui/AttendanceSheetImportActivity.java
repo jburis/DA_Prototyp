@@ -180,6 +180,31 @@ public class AttendanceSheetImportActivity extends AppCompatActivity {
         int seats;
         String contact;
     }
+    private String toIsoDate(String ddMMyyyy) {
+        // erwartet "dd.MM.yyyy" -> "yyyy-MM-dd"
+        if (ddMMyyyy == null) return "";
+        String s = ddMMyyyy.trim();
+        if (!s.matches("\\d{2}\\.\\d{2}\\.\\d{4}")) return "";
+        String dd = s.substring(0, 2);
+        String mm = s.substring(3, 5);
+        String yyyy = s.substring(6, 10);
+        return yyyy + "-" + mm + "-" + dd;
+    }
+
+    // ============================================================
+// VERBESSERTE VERSION v2 - Ersetze die Methoden in AttendanceSheetImportActivity.java
+// ============================================================
+//
+// Änderungen gegenüber Original:
+// 1. cleanName() entfernt Sternchen von Namen (*Borowa *Elzbieta -> Borowa Elzbieta)
+// 2. isSkipLine() erkennt Zeilen die übersprungen werden sollen (Menü, Begleitperson, etc.)
+// 3. isLikelyName() verbessert mit mehr Bannwörtern für Essensnamen
+// 4. cleanNameFromExtras() entfernt "mit Rollator" etc. aus Namen
+//
+// Diese Version funktioniert mit:
+// - Kaiser Wiesn 2024 (mit "Abfahrtsstelle Ausflug")
+// - Straußenfarm 2025 (mit "Menüauswahl", "Begleitperson", Sternchen-Namen)
+// ============================================================
 
     private String parseKwpList(String fullText) {
         String[] rawLines = fullText.split("\\r?\\n");
@@ -193,6 +218,7 @@ public class AttendanceSheetImportActivity extends AppCompatActivity {
         String eventLocationLocal = "";
         String eventTitleLocal = "";
 
+        // Datum und Ort extrahieren (z.B. "09.10.2024, Externer Veranstaltungsort")
         Pattern datePattern = Pattern.compile("(\\d{2}\\.\\d{2}\\.\\d{4}),\\s*(.+)");
         for (String line : lines) {
             Matcher m = datePattern.matcher(line);
@@ -203,6 +229,7 @@ public class AttendanceSheetImportActivity extends AppCompatActivity {
             }
         }
 
+        // Titel extrahieren (z.B. "Teilnehmerliste – Kaiser Wiesn 2024")
         for (String line : lines) {
             String lower = line.toLowerCase();
             if (lower.startsWith("teilnehmerliste")) {
@@ -214,6 +241,7 @@ public class AttendanceSheetImportActivity extends AppCompatActivity {
         }
 
         List<Participant> participants = new ArrayList<>();
+        // Pattern: #123456 1 email@example.com
         Pattern orderPattern = Pattern.compile("#(\\d+)\\s+(\\d+)\\s+(.+)");
 
         for (int i = 0; i < lines.size(); i++) {
@@ -225,32 +253,52 @@ public class AttendanceSheetImportActivity extends AppCompatActivity {
             int seats = Integer.parseInt(m.group(2));
             String contact = m.group(3);
 
+            // Telefonnummer in nächster Zeile hinzufügen (falls vorhanden)
             if (i + 1 < lines.size()) {
                 String next = lines.get(i + 1).trim();
-                if (next.matches(".*\\d.*") && !next.contains("@")) {
+                // Telefonnummer: beginnt mit + oder Ziffer, enthält nur Ziffern/Leerzeichen/Schrägstriche
+                if (next.matches("^[+\\d][\\d\\s/()-]+$")) {
                     contact = contact + ", " + next;
                 }
             }
 
             String nameLine = null;
 
+            // SCHRITT 1: Prüfen ob Name in derselben Zeile vor # steht
             int hashIndex = line.indexOf('#');
             if (hashIndex > 0) {
                 String prefix = line.substring(0, hashIndex).trim();
-                if (isLikelyName(prefix)) nameLine = prefix;
+                prefix = cleanName(prefix);
+                if (isLikelyName(prefix)) {
+                    nameLine = prefix;
+                }
             }
 
+            // SCHRITT 2: Rückwärtssuche nach Name
             if (nameLine == null) {
                 int j = i - 1;
                 while (j >= 0) {
                     String cand = lines.get(j).trim();
+
+                    // Zeilen überspringen die definitiv keine Namen sind
+                    if (isSkipLine(cand)) {
+                        j--;
+                        continue;
+                    }
+
+                    // Header erreicht -> abbrechen
                     String lc = cand.toLowerCase();
+                    if (lc.startsWith("teilnehmer") && (lc.contains("bestellung") || lc.contains("plätze"))) {
+                        break;
+                    }
+                    if (lc.equals("teilnehmerliste") || lc.startsWith("teilnehmerliste –")) {
+                        break;
+                    }
 
-                    if (lc.startsWith("abfahrtsstelle ausflug")) { j--; continue; }
-                    if (lc.startsWith("teilnehmer") || lc.startsWith("teilnehmerliste")) break;
-
-                    if (isLikelyName(cand)) {
-                        nameLine = cand;
+                    // Sternchen entfernen und prüfen
+                    String cleanedCand = cleanName(cand);
+                    if (isLikelyName(cleanedCand)) {
+                        nameLine = cleanedCand;
                         break;
                     }
                     j--;
@@ -259,6 +307,10 @@ public class AttendanceSheetImportActivity extends AppCompatActivity {
 
             if (nameLine == null || nameLine.isEmpty()) continue;
 
+            // SCHRITT 3: Extras aus Namen entfernen (z.B. "mit Rollator")
+            nameLine = cleanNameFromExtras(nameLine);
+
+            // SCHRITT 4: Name aufteilen (Format: Nachname Vorname)
             String[] nameParts = nameLine.split("\\s+", 2);
             String lastName = nameParts[0];
             String firstName = (nameParts.length > 1) ? nameParts[1] : "";
@@ -272,7 +324,7 @@ public class AttendanceSheetImportActivity extends AppCompatActivity {
             participants.add(p);
         }
 
-        // --- WICHTIG: parsed Werte in Felder übernehmen (für API Calls) ---
+        // Parsed Werte in Felder übernehmen
         this.eventTitle = eventTitleLocal;
         this.eventLocation = eventLocationLocal;
         this.eventDateIso = toIsoDate(eventDate);
@@ -288,7 +340,7 @@ public class AttendanceSheetImportActivity extends AppCompatActivity {
             ));
         }
 
-        // UI-Ausgabe (nur Info)
+        // UI-Ausgabe
         StringBuilder sb = new StringBuilder();
         sb.append("PDF Seiten: ").append(pdfPageCount).append("\n");
         sb.append("Titel: ").append(eventTitleLocal).append("\n");
@@ -299,17 +351,59 @@ public class AttendanceSheetImportActivity extends AppCompatActivity {
         return sb.toString();
     }
 
-    private String toIsoDate(String ddMMyyyy) {
-        // erwartet "dd.MM.yyyy" -> "yyyy-MM-dd"
-        if (ddMMyyyy == null) return "";
-        String s = ddMMyyyy.trim();
-        if (!s.matches("\\d{2}\\.\\d{2}\\.\\d{4}")) return "";
-        String dd = s.substring(0, 2);
-        String mm = s.substring(3, 5);
-        String yyyy = s.substring(6, 10);
-        return yyyy + "-" + mm + "-" + dd;
+    /**
+     * Entfernt Sternchen und normalisiert Leerzeichen
+     * z.B. "*Borowa *Elzbieta" -> "Borowa Elzbieta"
+     */
+    private String cleanName(String name) {
+        if (name == null) return "";
+        return name.replaceAll("\\*", "").trim().replaceAll("\\s+", " ");
     }
 
+    /**
+     * Entfernt Zusatzinfos aus Namen
+     * z.B. "Braun mit Rollator Alfons" -> "Braun Alfons"
+     */
+    private String cleanNameFromExtras(String name) {
+        if (name == null) return "";
+        // "mit Rollator", "mit Gehhilfe", etc. entfernen
+        String cleaned = name.replaceAll("(?i)\\s+mit\\s+\\w+", "");
+        return cleaned.trim().replaceAll("\\s+", " ");
+    }
+
+    /**
+     * Prüft ob eine Zeile übersprungen werden soll (kein Name)
+     */
+    private boolean isSkipLine(String line) {
+        if (line == null || line.isEmpty()) return true;
+
+        String lc = line.toLowerCase();
+
+        // Zeilen die mit bestimmten Schlüsselwörtern beginnen
+        if (lc.startsWith("abfahrtsstelle")) return true;
+        if (lc.startsWith("menüauswahl")) return true;
+        if (lc.equals("begleitperson")) return true;
+
+        // Reine Essensnamen (können als separate Zeile vorkommen wenn umgebrochen)
+        String[] foodWords = {
+                "hühnerbrust", "schweineschnitzel", "fischfilet",
+                "schnitzel", "huhn", "fisch"
+        };
+        for (String food : foodWords) {
+            if (lc.equals(food)) return true;
+        }
+
+        // Zeilen die nur aus Organisationsnamen bestehen
+        if (lc.contains("fonds kuratorium")) return true;
+        if (lc.contains("pensionisten-wohnhäuser")) return true;
+        if (lc.equals("die pensionist*innen klubs")) return true;
+
+        return false;
+    }
+
+    /**
+     * Prüft ob ein String wahrscheinlich ein Personenname ist
+     */
     private boolean isLikelyName(String cand) {
         if (cand == null) return false;
         String trimmed = cand.trim();
@@ -317,19 +411,45 @@ public class AttendanceSheetImportActivity extends AppCompatActivity {
 
         String lc = trimmed.toLowerCase();
 
-        if (trimmed.contains("@") || trimmed.contains("#") || trimmed.contains("/") || trimmed.contains(",")) return false;
+        // Ausschluss: Enthält Sonderzeichen (außer Bindestrich für Doppelnamen)
+        if (trimmed.contains("@")) return false;
+        if (trimmed.contains("#")) return false;
+        if (trimmed.contains("/")) return false;
+        if (trimmed.contains(",")) return false;
+        if (trimmed.contains(":")) return false;
+        if (trimmed.contains("*")) return false;
+
+        // Ausschluss: Enthält Ziffern
         if (trimmed.matches(".*\\d.*")) return false;
 
-        String[] bannedWords = {"haus","klub","klubs","pensionisten","pensionistinnen","stadt","wien","kwp","gruppe","team"};
-        for (String b : bannedWords) if (lc.contains(b)) return false;
+        // Bannwörter: Wenn eines davon vorkommt, ist es kein Name
+        String[] bannedWords = {
+                // Organisationen
+                "haus", "klub", "klubs", "pensionisten", "pensionistinnen",
+                "stadt", "wien", "kwp", "gruppe", "team", "fonds", "kuratorium",
+                // Header-Begriffe
+                "teilnehmer", "bestellung", "plätze", "kontakt",
+                // Zusatzinfos
+                "abfahrtsstelle", "ausflug", "begleitperson",
+                // Essen
+                "menüauswahl", "menü",
+                "gebratene", "gebackenes", "gebackene", "gebackener",
+                "hühnerbrust", "schweineschnitzel", "fischfilet",
+                "schnitzel"
+        };
 
-        String[] tokens = trimmed.split("\\s+");
-        if (tokens.length < 2 || tokens.length > 4) return false;
-
-        for (int i = 0; i < Math.min(2, tokens.length); i++) {
-            if (tokens[i].isEmpty()) continue;
-            if (!Character.isUpperCase(tokens[i].charAt(0))) return false;
+        for (String b : bannedWords) {
+            if (lc.contains(b)) return false;
         }
+
+        // Prüfung: Mindestens 2 Wörter, maximal 5 (für Doppelnamen + "mit Rollator" etc.)
+        String[] tokens = trimmed.split("\\s+");
+        if (tokens.length < 2 || tokens.length > 5) return false;
+
+        // Prüfung: Erstes Wort beginnt mit Großbuchstaben (inkl. Umlaute)
+        char firstChar = tokens[0].charAt(0);
+        if (!Character.isUpperCase(firstChar)) return false;
+
         return true;
     }
 }
