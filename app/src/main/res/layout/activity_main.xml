@@ -129,30 +129,15 @@
                             android:padding="12dp">
 
                             <Button
-                                android:id="@+id/scanBtn"
-                                android:layout_width="0dp"
-                                android:layout_height="48dp"
-                                android:layout_weight="1"
-                                android:text="Buchungsnr."
-                                android:textAllCaps="false"
-                                android:textStyle="bold"
-                                android:textColor="#FFFFFF"
-                                android:backgroundTint="#FF6600"/>
+                                android:id="@+id/btnStartScan"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Scan starten"
+                                android:layout_margin="8dp"
+                                android:visibility="gone" />
+                            r
 
-                            <Space
-                                android:layout_width="12dp"
-                                android:layout_height="1dp"/>
 
-                            <Button
-                                android:id="@+id/btn_qr"
-                                android:layout_width="0dp"
-                                android:layout_height="48dp"
-                                android:layout_weight="1"
-                                android:text="QR-Code"
-                                android:textAllCaps="false"
-                                android:textStyle="bold"
-                                android:textColor="#FFFFFF"
-                                android:backgroundTint="#546E7A"/>
                         </LinearLayout>
 
                     </LinearLayout>

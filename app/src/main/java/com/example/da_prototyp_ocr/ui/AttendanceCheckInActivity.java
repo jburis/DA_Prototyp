@@ -29,12 +29,10 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.example.da_prototyp_ocr.R;
 import com.example.da_prototyp_ocr.camera.CameraController;
-import com.example.da_prototyp_ocr.camera.OcrAnalyzer;
-import com.example.da_prototyp_ocr.camera.QrAnalyzer;
+import com.example.da_prototyp_ocr.camera.CombinedAnalyzer;
 import com.example.da_prototyp_ocr.dto.CheckinByBestellnummerRequest;
 import com.example.da_prototyp_ocr.logic.BuchungMatcher;
 import com.example.da_prototyp_ocr.logic.CheckInManager;
-import com.example.da_prototyp_ocr.logic.NameExtractor;
 import com.example.da_prototyp_ocr.model.Anwesenheit;
 import com.example.da_prototyp_ocr.model.Buchung;
 import com.example.da_prototyp_ocr.network.ApiClient;
@@ -60,8 +58,7 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
     private View scannedCard;
     private TextView textResult;
 
-    private Button scanBtn;
-    private Button qrBtn;
+    private Button btnStartScan;  // NEU: Ein Button statt zwei
     private Button btnToggleCamera;
 
     private ImageButton btnAddManual;
@@ -85,7 +82,7 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
     // ===== State =====
     private int veranstaltungId = -1;
     private int checkInAmount = 1;
-    private volatile boolean isProcessing = false;
+    private boolean isScanning = false;  // NEU: Scanning-Status
 
     private List<Buchung> allBuchungen = new ArrayList<>();
     private List<Buchung> filteredBuchungen = new ArrayList<>();
@@ -99,6 +96,7 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
     private final CameraController cameraController = new CameraController();
     private ExecutorService analyzerExecutor;
     private boolean isCameraOn = false;
+    private CombinedAnalyzer currentAnalyzer;  // NEU: Referenz auf Analyzer
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -111,8 +109,8 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
         scannedCard = findViewById(R.id.scannedCard);
         textResult = findViewById(R.id.textResult);
 
-        scanBtn = findViewById(R.id.scanBtn);
-        qrBtn = findViewById(R.id.btn_qr);
+        // NEU: Ein Button statt zwei
+        btnStartScan = findViewById(R.id.btnStartScan);
         btnToggleCamera = findViewById(R.id.btnToggleCamera);
 
         btnAddManual = findViewById(R.id.btnAddManual);
@@ -157,22 +155,19 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
         // ===== Listeners =====
         btnToggleCamera.setOnClickListener(v -> toggleCamera());
 
-        scanBtn.setOnClickListener(v -> {
-            hideConfirmation();
+        // NEU: Ein Button für automatisches Scannen
+        btnStartScan.setOnClickListener(v -> {
             if (!isCameraOn) {
-                Toast.makeText(this, "Kamera ist aus. Bitte Kamera einschalten.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Bitte zuerst Kamera einschalten", Toast.LENGTH_SHORT).show();
                 return;
             }
-            loadBuchungenAndAnwesenheiten(this::startOneShotOcr);
-        });
 
-        qrBtn.setOnClickListener(v -> {
-            hideConfirmation();
-            if (!isCameraOn) {
-                Toast.makeText(this, "Kamera ist aus. Bitte Kamera einschalten.", Toast.LENGTH_SHORT).show();
-                return;
+            if (isScanning) {
+                stopScanning();
+            } else {
+                // Buchungen laden und dann Scannen starten
+                loadBuchungenAndAnwesenheiten(this::startContinuousScanning);
             }
-            loadBuchungenAndAnwesenheiten(this::startOneShotQr);
         });
 
         // Plus Button: Neue Buchung hinzufügen
@@ -295,20 +290,27 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
         teilnehmerAdapter.notifyDataSetChanged();
     }
 
-    // ===== Kamera UI: wenn Kamera AN -> Gescannt-Kachel ausblenden =====
+    // ===== Kamera UI =====
     private void setCameraUi(boolean on) {
         if (cameraCard != null) cameraCard.setVisibility(on ? View.VISIBLE : View.GONE);
 
         // weniger Ablenkung: Liste ausblenden wenn Kamera an
         if (scannedCard != null) scannedCard.setVisibility(on ? View.GONE : View.VISIBLE);
 
-        // Scan-Buttons ausblenden wenn Kamera an
-        if (scanBtn != null) scanBtn.setVisibility(on ? View.VISIBLE : View.GONE);
-        if (qrBtn != null) qrBtn.setVisibility(on ? View.VISIBLE : View.GONE);
+        // NEU: Nur einen Button anzeigen
+        if (btnStartScan != null) {
+            btnStartScan.setVisibility(on ? View.VISIBLE : View.GONE);
+            btnStartScan.setText("Scan starten");
+        }
 
         btnToggleCamera.setText(on ? "Kamera AUS" : "Kamera AN");
-        textResult.setText(on ? "Kamera aktiv – halte QR/Bestellnummer ins Bild"
-                : "Kamera manuell starten und dann scannen");
+        textResult.setText(on ? "Drücke 'Scan starten' um zu beginnen"
+                : "Kamera manuell starten");
+
+        // Scanning zurücksetzen wenn Kamera aus
+        if (!on) {
+            isScanning = false;
+        }
     }
 
     private void toggleCamera() {
@@ -329,14 +331,18 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
                 this,
                 previewView,
                 CameraSelector.LENS_FACING_BACK,
-                new Size(720, 720) // quadratischer + größer
+                new Size(720, 720)
         );
         isCameraOn = true;
-        isProcessing = false;
         setCameraUi(true);
     }
 
     private void stopCamera() {
+        // NEU: Zuerst Scanning stoppen
+        if (isScanning) {
+            stopScanning();
+        }
+
         try {
             ImageAnalysis analysis = cameraController.getImageAnalysis();
             if (analysis != null) analysis.clearAnalyzer();
@@ -345,12 +351,12 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
             Log.e(TAG, "stopCamera failed", e);
         }
         isCameraOn = false;
-        isProcessing = false;
+        currentAnalyzer = null;
         hideConfirmation();
         setCameraUi(false);
     }
 
-    // Permission: NICHT auto-start
+    // Permission
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -363,117 +369,65 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
         }
     }
 
-    // ===== Analyzer OCR =====
-    private void startOneShotOcr() {
+    // ===== NEU: Kontinuierliches Scannen =====
+    private void startContinuousScanning() {
         ImageAnalysis analysis = cameraController.getImageAnalysis();
         if (analysis == null) return;
-        if (isProcessing) return;
 
-        isProcessing = true;
-        analysis.clearAnalyzer();
+        isScanning = true;
+        btnStartScan.setText("Scan stoppen");
+        textResult.setText("Scanne... Halte QR-Code oder Buchungsbestätigung vor die Kamera");
 
-        analysis.setAnalyzer(analyzerExecutor, new OcrAnalyzer(new OcrAnalyzer.Callback() {
+        currentAnalyzer = new CombinedAnalyzer(new CombinedAnalyzer.Callback() {
             @Override
-            public void onOcrText(@NonNull String fullText) {
-                final String order = NameExtractor.extractOrder(fullText);
-
+            public void onResult(@NonNull CombinedAnalyzer.ResultType type, @NonNull String value) {
                 runOnUiThread(() -> {
-                    if (order == null) {
-                        Toast.makeText(AttendanceCheckInActivity.this, "Keine Bestellnummer erkannt.", Toast.LENGTH_SHORT).show();
-                        finishProcessing(analysis);
-                        return;
+                    Buchung found = null;
+
+                    if (type == CombinedAnalyzer.ResultType.QR_CODE) {
+                        // QR-Code: value ist der extrahierte Name
+                        found = matcher.findByDisplayName(allBuchungen, value);
+                        if (found == null) {
+                            textResult.setText("QR erkannt, aber nicht gefunden: " + value);
+                        }
+                    } else {
+                        // OCR: value ist die Bestellnummer
+                        found = matcher.findByBestellnummer(allBuchungen, value);
+                        if (found == null) {
+                            textResult.setText("Bestellnr. erkannt, aber nicht gefunden: " + value);
+                        }
                     }
 
-                    Buchung found = matcher.findByBestellnummer(allBuchungen, order);
-                    if (found == null) {
-                        Toast.makeText(AttendanceCheckInActivity.this, "Nicht gefunden: " + order, Toast.LENGTH_SHORT).show();
-                        hideConfirmation();
-                        finishProcessing(analysis);
-                        return;
+                    if (found != null) {
+                        // Erfolg! Popup anzeigen
+                        String typeStr = (type == CombinedAnalyzer.ResultType.QR_CODE) ? "QR" : "OCR";
+                        textResult.setText(typeStr + " erkannt: " + found.getDisplayName());
+                        showConfirmation(found);
                     }
-
-                    // Kamera bleibt AN, Popup kommt unten als Overlay
-                    showConfirmation(found);
-                    finishProcessing(analysis);
                 });
             }
 
             @Override
-            public void onOcrError(@NonNull Exception e) {
+            public void onError(@NonNull Exception e) {
                 runOnUiThread(() -> {
-                    Toast.makeText(AttendanceCheckInActivity.this, "OCR-Fehler: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    finishProcessing(analysis);
+                    // Fehler nur loggen, nicht bei jedem Frame anzeigen
+                    Log.e(TAG, "Scan-Fehler: " + e.getMessage());
                 });
             }
+        });
 
-            @Override
-            public void onDone() {
-                runOnUiThread(() -> finishProcessing(analysis));
-            }
-        }));
+        analysis.setAnalyzer(analyzerExecutor, currentAnalyzer);
     }
 
-    // ===== Analyzer QR =====
-    private void startOneShotQr() {
+    private void stopScanning() {
         ImageAnalysis analysis = cameraController.getImageAnalysis();
-        if (analysis == null) return;
-        if (isProcessing) return;
-
-        isProcessing = true;
-        analysis.clearAnalyzer();
-
-        analysis.setAnalyzer(analyzerExecutor, new QrAnalyzer(new QrAnalyzer.Callback() {
-            @Override
-            public void onQrRaw(@NonNull String rawValue) {
-                final String participantName = NameExtractor.extractQRName(rawValue);
-
-                runOnUiThread(() -> {
-                    if (participantName == null) {
-                        Toast.makeText(AttendanceCheckInActivity.this, "QR-Code hat falsches Format.", Toast.LENGTH_SHORT).show();
-                        finishProcessing(analysis);
-                        return;
-                    }
-
-                    Buchung found = matcher.findByDisplayName(allBuchungen, participantName);
-                    if (found == null) {
-                        Toast.makeText(AttendanceCheckInActivity.this, "Nicht gefunden: " + participantName, Toast.LENGTH_SHORT).show();
-                        hideConfirmation();
-                        finishProcessing(analysis);
-                        return;
-                    }
-
-                    // Kamera bleibt AN, Popup kommt unten als Overlay
-                    showConfirmation(found);
-                    finishProcessing(analysis);
-                });
-            }
-
-            @Override
-            public void onQrEmpty() {
-                runOnUiThread(() -> {
-                    Toast.makeText(AttendanceCheckInActivity.this, "Kein QR-Code erkannt", Toast.LENGTH_SHORT).show();
-                    finishProcessing(analysis);
-                });
-            }
-
-            @Override
-            public void onQrError(@NonNull Exception e) {
-                runOnUiThread(() -> {
-                    Toast.makeText(AttendanceCheckInActivity.this, "QR Fehler: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    finishProcessing(analysis);
-                });
-            }
-
-            @Override
-            public void onDone() {
-                runOnUiThread(() -> finishProcessing(analysis));
-            }
-        }));
-    }
-
-    private void finishProcessing(@NonNull ImageAnalysis analysis) {
-        try { analysis.clearAnalyzer(); } catch (Exception ignored) {}
-        isProcessing = false;
+        if (analysis != null) {
+            analysis.clearAnalyzer();
+        }
+        isScanning = false;
+        currentAnalyzer = null;
+        btnStartScan.setText("Scan starten");
+        textResult.setText("Scan gestoppt");
     }
 
     // ===== Bottom Confirmation Overlay =====
@@ -509,7 +463,6 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
     }
 
     private void setupPlusMinus() {
-        // sicherstellen, dass +/− sichtbar sind
         btnMinus.setText("−");
         btnPlus.setText("+");
 
@@ -640,6 +593,11 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
                                 Toast.makeText(AttendanceCheckInActivity.this, msg, Toast.LENGTH_LONG).show();
                                 textResult.setText(msg);
 
+                                // Cooldown zurücksetzen damit sofort nächste Person gescannt werden kann
+                                if (currentAnalyzer != null) {
+                                    currentAnalyzer.resetCooldown();
+                                }
+
                                 // Liste neu laden nach erfolgreichem Check-in
                                 loadBuchungenAndAnwesenheiten(null);
                             } else {
@@ -707,7 +665,7 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
                 anzahlPlaetze = 1;
             }
 
-            // Buchung erstellen via API (Bestellnummer und E-Mail werden automatisch generiert)
+            // Buchung erstellen via API
             createNewBuchung(vorname, nachname, anzahlPlaetze);
         });
 
@@ -727,7 +685,7 @@ public class AttendanceCheckInActivity extends AppCompatActivity {
         int randomNumber = 100000 + new java.util.Random().nextInt(900000);
         String generatedBestellnummer = "#" + randomNumber;
 
-        // E-Mail automatisch generieren (vorname.nachname@generated.local)
+        // E-Mail automatisch generieren
         String generatedEmail = vorname.toLowerCase() + "." + nachname.toLowerCase() + "@generated.local";
 
         ApiService apiService = ApiClient.getClient().create(ApiService.class);
