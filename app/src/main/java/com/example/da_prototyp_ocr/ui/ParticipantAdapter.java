@@ -56,7 +56,7 @@ public class ParticipantAdapter extends BaseAdapter {
 
         Buchung booking = bookings.get(position);
 
-        // Name (bold)
+    
         String displayName = booking.getDisplayName();
         if (displayName == null || displayName.trim().isEmpty()) {
             displayName = booking.getVorname() + " " + booking.getNachname();
@@ -66,12 +66,11 @@ public class ParticipantAdapter extends BaseAdapter {
         // Order number
         holder.orderNumberText.setText(booking.getBestellnummer() != null ? booking.getBestellnummer() : "");
 
-        // Check-in status: "X/Y checked in"
+       
         int checkedIn = booking.getCheckedInCount();
         int total = booking.getAnzahlPlaetze();
         holder.statusText.setText(checkedIn + "/" + total + " checked in");
 
-        // Color coding of status
         int color;
         if (checkedIn == 0) {
             // Gray - nobody checked in
