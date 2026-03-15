@@ -82,12 +82,25 @@ public class PdfParser {
         }
 
         // Titel aus Zeile "Teilnehmerliste - Veranstaltungsname"
-        for (String line : lines) {
+        // Unterstützt auch mehrzeilige Titel (z.B. "Ausflug nach Schönberg,\nStraußenfarm")
+        for (int i = 0; i < lines.size(); i++) {
+            String line = lines.get(i);
             String lower = line.toLowerCase();
             if (lower.startsWith("teilnehmerliste")) {
                 String[] parts = line.split("[-–]", 2);
-                if (parts.length == 2) eventTitle = parts[1].trim();
-                else eventTitle = line.trim();
+                if (parts.length == 2) {
+                    eventTitle = parts[1].trim();
+
+                    // Prüfen ob nächste Zeile eine Titel-Fortsetzung ist
+                    if (i + 1 < lines.size()) {
+                        String nextLine = lines.get(i + 1).trim();
+                        if (isTitleContinuation(nextLine)) {
+                            eventTitle = eventTitle + " " + nextLine;
+                        }
+                    }
+                } else {
+                    eventTitle = line.trim();
+                }
                 break;
             }
         }
@@ -216,6 +229,45 @@ public class PdfParser {
         if (lc.contains("pensionisten-wohnhäuser")) return true;
 
         return false;
+    }
+
+    /**
+     * Prüft ob eine Zeile eine Fortsetzung des Event-Titels ist.
+     * Wird verwendet wenn der Titel über mehrere Zeilen geht.
+     * z.B. "Teilnehmerliste – Ausflug nach Schönberg," / "Straußenfarm"
+     *
+     * @param line Die zu prüfende Zeile
+     * @return true wenn die Zeile wahrscheinlich zum Titel gehört
+     */
+    private boolean isTitleContinuation(String line) {
+        if (line == null || line.trim().isEmpty()) return false;
+        String trimmed = line.trim();
+        String lc = trimmed.toLowerCase();
+
+        // Tabellen-Header-Zeile erkennen
+        if (lc.contains("teilnehmer") && lc.contains("bestellung")) return false;
+        if (lc.contains("plätze") && lc.contains("kontakt")) return false;
+
+        // Bestellnummer-Muster (#123456)
+        if (trimmed.matches(".*#\\d{5,}.*")) return false;
+
+        // E-Mail-Adresse
+        if (trimmed.contains("@")) return false;
+
+        // Teilnehmername mit Sternchen-Präfix (z.B. *Borowa *Elzbieta)
+        if (trimmed.startsWith("*")) return false;
+
+        // Zeile die wie ein Name aussieht (Nachname Vorname)
+        // Wenn es ein valider Name ist, gehört es nicht zum Titel
+        if (isLikelyName(trimmed)) return false;
+
+        // Sehr lange Zeilen sind unwahrscheinlich Titel-Fortsetzungen
+        if (trimmed.length() > 60) return false;
+
+        // Sehr kurze Zeilen (1-2 Zeichen) sind keine Titel
+        if (trimmed.length() < 3) return false;
+
+        return true;
     }
 
     /**
