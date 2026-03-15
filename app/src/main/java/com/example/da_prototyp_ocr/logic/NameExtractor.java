@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public final class NameExtractor {
+public class NameExtractor {
 
     // 🔢 Bestellnummern-Pattern: NEUE VERSION, extrahiert das Hashtag mit.
     private static final Pattern ORDER_PATTERN = Pattern.compile(
@@ -42,40 +42,6 @@ public final class NameExtractor {
         return firstMatch(ORDER_PATTERN, fullText);
     }
 
-    /** Extrahiert einen plausiblen Namen; bevorzugt Zeilen nahe der Bestellnummer. */
-    public static String extractName(String fullText) {
-        if (fullText == null) return null;
-        String[] lines = splitLines(fullText);
-
-        // Kandidaten sammeln
-        List<String> candidates = new ArrayList<>();
-        for (String line : lines) {
-            String cleaned = stripNoise(line);
-            if (cleaned.isEmpty()) continue;
-            if (cleaned.matches(".*[@€\\d].*")) continue;       // E-Mail, Geld, Ziffern eher kein Name
-            if (cleaned.length() < 4) continue;
-
-            String n = firstMatch(NAME_MIXED, cleaned);
-            if (n == null) n = firstMatch(NAME_ALLCAPS, cleaned);
-            if (n != null) candidates.add(n);
-        }
-
-        if (candidates.isEmpty()) return null;
-
-        // Bevorzuge Kandidaten NACH einer "Bestell"-Zeile (typisch: direkt darunter steht der Name)
-        int idx = indexOfLineContaining(lines, "(?i)bestell");
-        if (idx != -1) {
-            for (int i = idx + 1; i <= Math.min(idx + 3, lines.length - 1); i++) {
-                String cleaned = stripNoise(lines[i]);
-                String n = firstMatch(NAME_MIXED, cleaned);
-                if (n == null) n = firstMatch(NAME_ALLCAPS, cleaned);
-                if (n != null) return n;
-            }
-        }
-
-        // Sonst: erster guter Treffer
-        return candidates.get(0);
-    }
     /**
      * Extrahiert den Namen speziell aus einem QR-Code mit Strichpunkt-Format.
      * Nimmt an, dass der Vorname das 4. und der Nachname das 5. Element ist.
