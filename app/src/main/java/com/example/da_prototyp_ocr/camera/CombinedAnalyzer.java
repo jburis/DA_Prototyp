@@ -18,38 +18,39 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
 import java.util.List;
 
 /**
- * Kombinierter Analyzer der automatisch sowohl QR-Codes als auch
- * Bestellnummern (OCR) erkennt.
+ * Das Herzstück der Erkennung: Analysiert jeden Kamera-Frame auf QR-Codes und Bestellnummern.
  *
- * Ablauf pro Frame:
- * 1. Versuche QR-Code zu erkennen (schnell, eindeutig)
- * 2. Falls kein QR gefunden → versuche OCR (Bestellnummer)
- * 3. Bei Treffer → Callback auslösen + Cooldown starten
+ * Warum kombiniert? Ursprünglich gab es zwei separate Buttons (QR-Scan und OCR-Scan),
+ * aber das war umständlich für einhändige Bedienung. Jetzt läuft beides automatisch:
+ *
+ * 1. Erst QR-Code checken (schneller und eindeutiger)
+ * 2. Falls kein QR → OCR auf Bestellnummer (#123456) versuchen
+ * 3. Bei Treffer → 3 Sekunden Pause, damit nicht dieselbe Person 10x erkannt wird
  */
 public class CombinedAnalyzer implements ImageAnalysis.Analyzer {
 
-    private static final long COOLDOWN_MS = 3000; // 3 Sekunden Pause nach Erkennung
+    // Nach erfolgreicher Erkennung kurz warten, sonst piept es endlos
+    private static final long COOLDOWN_MS = 3000;
 
     public enum ResultType {
-        QR_CODE,
-        OCR_ORDER_NUMBER
+        QR_CODE,          // Klubkarte gescannt
+        OCR_ORDER_NUMBER  // Bestellnummer auf Buchungsbestätigung erkannt
     }
 
     public interface Callback {
         /**
-         * Wird aufgerufen wenn ein QR-Code oder eine Bestellnummer erkannt wurde.
-         * @param type Art der Erkennung (QR oder OCR)
-         * @param value Bei QR: extrahierter Name, bei OCR: Bestellnummer
+         * Wird aufgerufen wenn was erkannt wurde.
+         * @param type Was wurde erkannt (QR oder OCR)
+         * @param value Bei QR: Name aus Klubkarte, bei OCR: die Bestellnummer
          */
         void onResult(@NonNull ResultType type, @NonNull String value);
 
-        /**
-         * Wird bei Fehlern aufgerufen.
-         */
         void onError(@NonNull Exception e);
     }
 
     private final Callback callback;
+
+    // Flags um Race Conditions zu vermeiden
     private volatile boolean isProcessing = false;
     private volatile long lastResultTime = 0;
     private volatile String lastResultValue = null;
@@ -58,10 +59,14 @@ public class CombinedAnalyzer implements ImageAnalysis.Analyzer {
         this.callback = callback;
     }
 
+    /**
+     * Wird von CameraX für JEDEN Frame aufgerufen (ca. 30x pro Sekunde).
+     * Muss schnell sein, sonst laggt die Kamera-Preview.
+     */
     @SuppressLint("UnsafeOptInUsageError")
     @Override
     public void analyze(@NonNull ImageProxy imageProxy) {
-        // Wenn noch in Verarbeitung oder im Cooldown → Frame überspringen
+        // Noch am Verarbeiten oder gerade erst was erkannt? → Frame wegwerfen
         if (isProcessing || isInCooldown()) {
             imageProxy.close();
             return;
@@ -75,46 +80,47 @@ public class CombinedAnalyzer implements ImageAnalysis.Analyzer {
 
         isProcessing = true;
 
+        // Bild für ML Kit vorbereiten (inkl. Rotation, sonst ist alles auf der Seite)
         InputImage inputImage = InputImage.fromMediaImage(
                 mediaImage,
                 imageProxy.getImageInfo().getRotationDegrees()
         );
 
-        // SCHRITT 1: Versuche QR-Code zu erkennen
+        // Erst QR versuchen - ist schneller und eindeutiger als OCR
         BarcodeScanning.getClient()
                 .process(inputImage)
                 .addOnSuccessListener(barcodes -> {
                     String qrResult = extractQrResult(barcodes);
 
                     if (qrResult != null) {
-                        // QR-Code gefunden!
+                        // QR gefunden → fertig
                         handleResult(ResultType.QR_CODE, qrResult, imageProxy);
                     } else {
-                        // Kein QR → versuche OCR
+                        // Kein QR → OCR als Fallback versuchen
                         tryOcr(inputImage, imageProxy);
                     }
                 })
                 .addOnFailureListener(e -> {
-                    // QR fehlgeschlagen → versuche trotzdem OCR
+                    // QR-Scanner crashed manchmal bei schlechtem Licht → OCR trotzdem versuchen
                     tryOcr(inputImage, imageProxy);
                 });
     }
 
     /**
-     * Versucht eine Bestellnummer per OCR zu erkennen.
+     * OCR-Fallback: Sucht nach Bestellnummer (#123456) im erkannten Text.
      */
     private void tryOcr(@NonNull InputImage inputImage, @NonNull ImageProxy imageProxy) {
         TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
                 .process(inputImage)
                 .addOnSuccessListener(result -> {
                     String fullText = result.getText();
+                    // NameExtractor sucht nach dem Muster "#" + mindestens 5 Ziffern
                     String orderNumber = NameExtractor.extractOrder(fullText);
 
                     if (orderNumber != null && !orderNumber.isEmpty()) {
-                        // Bestellnummer gefunden!
                         handleResult(ResultType.OCR_ORDER_NUMBER, orderNumber, imageProxy);
                     } else {
-                        // Nichts gefunden → Frame freigeben
+                        // Nichts gefunden, nächster Frame
                         finishProcessing(imageProxy);
                     }
                 })
@@ -125,7 +131,9 @@ public class CombinedAnalyzer implements ImageAnalysis.Analyzer {
     }
 
     /**
-     * Extrahiert den Namen aus einem QR-Code (falls gültiges Format).
+     * Extrahiert den Namen aus QR-Code der Klubkarte.
+     * Format: "MitgliedsID;Geschlecht;;Vorname;Nachname"
+     * z.B. "201806618;W;;Christine;FUHRMANN" → "Christine FUHRMANN"
      */
     @Nullable
     private String extractQrResult(@Nullable List<Barcode> barcodes) {
@@ -138,50 +146,44 @@ public class CombinedAnalyzer implements ImageAnalysis.Analyzer {
             return null;
         }
 
-        // Versuche Namen aus QR-Code zu extrahieren (Semikolon-Format)
-        String name = NameExtractor.extractQRName(rawValue);
-        return name;
+        return NameExtractor.extractQRName(rawValue);
     }
 
     /**
-     * Verarbeitet ein erfolgreiches Ergebnis.
+     * Erfolgreiches Ergebnis verarbeiten.
      */
     private void handleResult(@NonNull ResultType type, @NonNull String value, @NonNull ImageProxy imageProxy) {
-        // Prüfe ob es das gleiche Ergebnis wie beim letzten Mal ist (Duplikat-Schutz)
+        // Duplikat-Check: Wenn gleiche Person noch im Cooldown → ignorieren
+        // Verhindert dass jemand 5x hintereinander eingecheckt wird
         if (value.equals(lastResultValue) && isInCooldown()) {
             finishProcessing(imageProxy);
             return;
         }
 
-        // Ergebnis speichern für Duplikat-Prüfung
+        // Für nächsten Duplikat-Check merken
         lastResultValue = value;
         lastResultTime = System.currentTimeMillis();
 
-        // Callback auslösen
         callback.onResult(type, value);
-
         finishProcessing(imageProxy);
     }
 
-    /**
-     * Prüft ob wir noch im Cooldown sind (nach letzter Erkennung).
-     */
     private boolean isInCooldown() {
         return System.currentTimeMillis() - lastResultTime < COOLDOWN_MS;
     }
 
-    /**
-     * Beendet die Verarbeitung und gibt das Frame frei.
-     */
     private void finishProcessing(@NonNull ImageProxy imageProxy) {
         try {
             imageProxy.close();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+            // Kann passieren wenn Kamera schon gestoppt wurde
+        }
         isProcessing = false;
     }
 
     /**
-     * Setzt den Cooldown zurück (z.B. nach erfolgreichem Check-In).
+     * Cooldown zurücksetzen - wird nach erfolgreichem Check-In aufgerufen,
+     * damit sofort die nächste Person gescannt werden kann.
      */
     public void resetCooldown() {
         lastResultTime = 0;

@@ -20,18 +20,26 @@ import retrofit2.http.Header;
 import retrofit2.http.POST;
 import retrofit2.http.Path;
 
+/**
+ * Retrofit Interface für alle Backend-API Endpunkte.
+ * Retrofit generiert die Implementation automatisch basierend auf den Annotationen.
+ *
+ * Authentifizierung: Schreibende Operationen brauchen den x-admin-token Header.
+ */
 public interface ApiService {
 
     // ==================== VERANSTALTUNGEN ====================
 
     /**
-     * Ruft alle Veranstaltungen ab.
+     * Holt alle Veranstaltungen (für die Übersichtsliste).
+     * GET /api/veranstaltungen
      */
     @GET("api/veranstaltungen")
     Call<List<Veranstaltung>> getVeranstaltungen();
 
     /**
-     * Erstellt eine neue Veranstaltung.
+     * Erstellt eine neue Veranstaltung (beim PDF-Import).
+     * POST /api/veranstaltungen
      */
     @POST("api/veranstaltungen")
     Call<Veranstaltung> createVeranstaltung(
@@ -42,7 +50,8 @@ public interface ApiService {
     // ==================== BUCHUNGEN ====================
 
     /**
-     * Ruft alle Buchungen einer Veranstaltung ab.
+     * Holt alle Buchungen für eine Veranstaltung (Teilnehmerliste).
+     * GET /api/buchungen/veranstaltung/{id}
      */
     @GET("api/buchungen/veranstaltung/{veranstaltung_id}")
     Call<List<Buchung>> getBuchungenByVeranstaltung(
@@ -50,7 +59,8 @@ public interface ApiService {
     );
 
     /**
-     * Erstellt eine neue Buchung.
+     * Erstellt eine einzelne Buchung (manuelles Hinzufügen).
+     * POST /api/buchungen
      */
     @POST("api/buchungen")
     Call<Buchung> createBuchung(
@@ -60,6 +70,7 @@ public interface ApiService {
 
     /**
      * Löscht eine Buchung.
+     * DELETE /api/buchungen/{id}
      */
     @DELETE("api/buchungen/{buchung_id}")
     Call<Void> deleteBuchung(
@@ -67,7 +78,8 @@ public interface ApiService {
     );
 
     /**
-     * Importiert mehrere Buchungen auf einmal.
+     * Massenimport von Buchungen aus PDF.
+     * POST /api/veranstaltungen/{id}/buchungen/import
      */
     @POST("api/veranstaltungen/{veranstaltung_id}/buchungen/import")
     Call<ImportBuchungenResponse> importBuchungen(
@@ -79,7 +91,9 @@ public interface ApiService {
     // ==================== ANWESENHEITEN / CHECK-IN ====================
 
     /**
-     * Ruft alle Anwesenheiten einer Veranstaltung ab.
+     * Holt alle Check-Ins für eine Veranstaltung.
+     * Wird verwendet um checkedInCount pro Buchung zu berechnen.
+     * GET /api/anwesenheiten/veranstaltung/{id}
      */
     @GET("api/anwesenheiten/veranstaltung/{veranstaltung_id}")
     Call<List<Anwesenheit>> getAnwesenheitenByVeranstaltung(
@@ -87,7 +101,8 @@ public interface ApiService {
     );
 
     /**
-     * Check-In per Bestellnummer.
+     * Check-In per Bestellnummer (OCR-Weg).
+     * POST /api/anwesenheiten/veranstaltung/{id}/checkin/bestellnummer
      */
     @POST("api/anwesenheiten/veranstaltung/{veranstaltung_id}/checkin/bestellnummer")
     Call<Anwesenheit> checkInByBestellnummer(
@@ -97,7 +112,8 @@ public interface ApiService {
     );
 
     /**
-     * Check-In per Name.
+     * Check-In per Name (QR-Code-Weg).
+     * POST /api/anwesenheiten/veranstaltung/{id}/checkin/name
      */
     @POST("api/anwesenheiten/veranstaltung/{veranstaltung_id}/checkin/name")
     Call<CheckinByNameResponse> checkInByName(

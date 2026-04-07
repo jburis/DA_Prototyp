@@ -13,6 +13,15 @@ import com.example.da_prototyp_ocr.model.Buchung;
 
 import java.util.List;
 
+/**
+ * Adapter für die Teilnehmerliste im Check-In Screen.
+ * Zeigt Name, Bestellnummer und Check-In Status mit Farbindikator.
+ *
+ * Farben:
+ * - Grau = noch niemand eingecheckt
+ * - Orange = teilweise eingecheckt
+ * - Grün = alle eingecheckt
+ */
 public class ParticipantAdapter extends BaseAdapter {
 
     private final Context context;
@@ -42,6 +51,7 @@ public class ParticipantAdapter extends BaseAdapter {
     public View getView(int position, View convertView, ViewGroup parent) {
         ViewHolder holder;
 
+        // ViewHolder-Pattern für bessere Performance (Views werden recycled)
         if (convertView == null) {
             convertView = LayoutInflater.from(context).inflate(R.layout.item_participant, parent, false);
             holder = new ViewHolder();
@@ -56,31 +66,29 @@ public class ParticipantAdapter extends BaseAdapter {
 
         Buchung booking = bookings.get(position);
 
-    
+        // Name anzeigen (Fallback auf Vor+Nachname falls DisplayName leer)
         String displayName = booking.getDisplayName();
         if (displayName == null || displayName.trim().isEmpty()) {
             displayName = booking.getVorname() + " " + booking.getNachname();
         }
         holder.nameText.setText(displayName);
 
-        // Order number
+        // Bestellnummer
         holder.orderNumberText.setText(booking.getBestellnummer() != null ? booking.getBestellnummer() : "");
 
-       
+        // Status: "2/5 checked in"
         int checkedIn = booking.getCheckedInCount();
         int total = booking.getAnzahlPlaetze();
         holder.statusText.setText(checkedIn + "/" + total + " checked in");
 
+        // Farbindikator je nach Status
         int color;
         if (checkedIn == 0) {
-            // Gray - nobody checked in
-            color = Color.parseColor("#9E9E9E");
+            color = Color.parseColor("#9E9E9E");  // Grau – noch niemand da
         } else if (checkedIn < total) {
-            // Orange - partially checked in
-            color = Color.parseColor("#FF9800");
+            color = Color.parseColor("#FF9800");  // Orange – teilweise da
         } else {
-            // Green - fully checked in
-            color = Color.parseColor("#4CAF50");
+            color = Color.parseColor("#4CAF50");  // Grün – alle da
         }
         holder.statusIndicator.setBackgroundColor(color);
         holder.statusText.setTextColor(color);
@@ -88,6 +96,10 @@ public class ParticipantAdapter extends BaseAdapter {
         return convertView;
     }
 
+    /**
+     * ViewHolder für Performance-Optimierung.
+     * Verhindert wiederholte findViewById()-Aufrufe beim Scrollen.
+     */
     static class ViewHolder {
         TextView nameText;
         TextView orderNumberText;

@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.widget.Button;
 import android.widget.TextView;
 
+import com.example.da_prototyp_ocr.BuildConfig;
 import com.example.da_prototyp_ocr.R;
 import com.example.da_prototyp_ocr.dto.ImportBuchungenRequest;
 import com.example.da_prototyp_ocr.dto.ImportBuchungenResponse;
@@ -27,26 +28,36 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
+/**
+ * PDF-Import Screen: Liest eine KWP-Teilnehmerliste ein und importiert sie.
+ *
+ * Ablauf:
+ * 1. User wählt PDF aus dem Speicher
+ * 2. PDFBox extrahiert den Text
+ * 3. PdfParser extrahiert Veranstaltungsdaten + Buchungen
+ * 4. API: Neue Veranstaltung anlegen
+ * 5. API: Buchungen massenimportieren
+ * 6. Zurück zur Veranstaltungsliste
+ */
 public class AttendanceSheetImportActivity extends AppCompatActivity {
 
     private static final int REQUEST_CODE_PICK_PDF = 1001;
-    private static final String ADMIN_TOKEN = "supersecret-token";
+    private static final String ADMIN_TOKEN = BuildConfig.ADMIN_TOKEN;
 
     private Button btnSelectPdf;
-    private TextView tvResult;
+    private TextView tvResult;  // Zeigt Fortschritt und Ergebnis an
 
     private int pdfPageCount = -1;
 
-    // Parser für KWP-Teilnehmerlisten
     private final PdfParser pdfParser = new PdfParser();
-
-    // Parsing-Ergebnis
     private PdfParser.ParseResult parseResult;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_pdf_import);
+
+        // PDFBox muss einmal initialisiert werden
         PDFBoxResourceLoader.init(getApplicationContext());
 
         btnSelectPdf = findViewById(R.id.btnSelectPdf);
@@ -55,6 +66,9 @@ public class AttendanceSheetImportActivity extends AppCompatActivity {
         btnSelectPdf.setOnClickListener(v -> openPdfPicker());
     }
 
+    /**
+     * Öffnet den System-Datei-Picker für PDFs.
+     */
     private void openPdfPicker() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("application/pdf");
@@ -75,6 +89,9 @@ public class AttendanceSheetImportActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Hauptlogik: PDF öffnen, Text extrahieren, parsen und validieren.
+     */
     private void extractAndParsePdf(Uri pdfUri) {
         try {
             InputStream is = getContentResolver().openInputStream(pdfUri);
@@ -83,23 +100,24 @@ public class AttendanceSheetImportActivity extends AppCompatActivity {
                 return;
             }
 
-            // PDF laden und Text extrahieren
+            // PDF mit PDFBox laden
             PDDocument document = PDDocument.load(is);
             pdfPageCount = document.getNumberOfPages();
 
+            // Gesamten Text aus dem PDF extrahieren
             PDFTextStripper stripper = new PDFTextStripper();
             String fullText = stripper.getText(document);
 
             document.close();
             is.close();
 
-            // Text parsen mit PdfParser
+            // Text an unseren Parser übergeben
             parseResult = pdfParser.parse(fullText);
 
-            // UI aktualisieren
+            // Ergebnis anzeigen
             displayParseResult();
 
-            // Validierung
+            // Validierung: Sind alle nötigen Daten vorhanden?
             if (!parseResult.isValid()) {
                 if (parseResult.eventTitle.isEmpty() || parseResult.eventLocation.isEmpty()
                         || parseResult.eventDateIso.isEmpty()) {
@@ -110,7 +128,7 @@ public class AttendanceSheetImportActivity extends AppCompatActivity {
                 return;
             }
 
-            // Veranstaltung anlegen und Buchungen importieren
+            // Alles OK → Import starten
             createEventThenImportBookings();
 
         } catch (Exception e) {
@@ -119,6 +137,9 @@ public class AttendanceSheetImportActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Zeigt die extrahierten Daten zur Kontrolle an.
+     */
     private void displayParseResult() {
         StringBuilder sb = new StringBuilder();
         sb.append("PDF Seiten: ").append(pdfPageCount).append("\n");
@@ -130,9 +151,15 @@ public class AttendanceSheetImportActivity extends AppCompatActivity {
         tvResult.setText(sb.toString());
     }
 
+    /**
+     * Zwei API-Calls hintereinander:
+     * 1. Veranstaltung anlegen
+     * 2. Mit der neuen ID die Buchungen importieren
+     */
     private void createEventThenImportBookings() {
         ApiService api = ApiClient.getClient().create(ApiService.class);
 
+        // Request für neue Veranstaltung bauen
         VeranstaltungCreateRequest req = new VeranstaltungCreateRequest(
                 parseResult.eventTitle,
                 parseResult.eventDateIso,
@@ -141,6 +168,7 @@ public class AttendanceSheetImportActivity extends AppCompatActivity {
 
         tvResult.append("\n\nLege Veranstaltung an...");
 
+        // 1. Veranstaltung anlegen
         api.createVeranstaltung(ADMIN_TOKEN, req).enqueue(new Callback<Veranstaltung>() {
             @Override
             public void onResponse(Call<Veranstaltung> call, Response<Veranstaltung> response) {
@@ -152,6 +180,7 @@ public class AttendanceSheetImportActivity extends AppCompatActivity {
                 int veranstaltungId = response.body().getVeranstaltungId();
                 tvResult.append("\nVeranstaltung angelegt (ID: " + veranstaltungId + "). Importiere Buchungen...");
 
+                // 2. Buchungen massenimportieren
                 ImportBuchungenRequest importReq = new ImportBuchungenRequest(parseResult.buchungen);
 
                 api.importBuchungen(ADMIN_TOKEN, veranstaltungId, importReq).enqueue(new Callback<ImportBuchungenResponse>() {
@@ -165,7 +194,7 @@ public class AttendanceSheetImportActivity extends AppCompatActivity {
                         ImportBuchungenResponse r = response2.body();
                         tvResult.append("\nImport fertig. Importiert: " + r.importiert + " | Duplikate: " + r.duplikate);
 
-                        // Zurück zur SelectListActivity
+                        // Erfolg → Activity schließen und zur Liste zurück
                         setResult(RESULT_OK);
                         finish();
                     }

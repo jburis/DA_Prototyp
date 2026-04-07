@@ -1,4 +1,3 @@
-// SelectListActivity.java
 package com.example.da_prototyp_ocr.ui;
 
 import android.content.Intent;
@@ -25,6 +24,13 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
+/**
+ * Veranstaltungsliste: Zeigt alle verfügbaren Events an.
+ * Von hier aus kann man:
+ * - Eine Veranstaltung auswählen → Check-In Screen
+ * - Neue Veranstaltung per PDF importieren
+ * - Zur Startseite oder Admin-Bereich navigieren
+ */
 public class SelectListActivity extends AppCompatActivity {
 
     private static final int REQ_IMPORT_PDF = 2001;
@@ -34,8 +40,8 @@ public class SelectListActivity extends AppCompatActivity {
     private Button btnImportPdf;
 
     private ArrayAdapter<String> adapter;
-    private final List<Veranstaltung> veranstaltungen = new ArrayList<>();
-    private final List<String> titles = new ArrayList<>();
+    private final List<Veranstaltung> veranstaltungen = new ArrayList<>();  // Vollständige Objekte
+    private final List<String> titles = new ArrayList<>();                   // Nur Namen für Anzeige
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,13 +51,14 @@ public class SelectListActivity extends AppCompatActivity {
         listView = findViewById(R.id.listView);
         btnImportPdf = findViewById(R.id.btn_import_pdf);
 
+        // Einfacher ArrayAdapter reicht hier – zeigt nur die Titel an
         adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, titles);
         listView.setAdapter(adapter);
 
         setupBottomNav();
-
         loadVeranstaltungen();
 
+        // Klick auf Veranstaltung → zum Check-In Screen
         listView.setOnItemClickListener((parent, view, position, id) -> {
             Veranstaltung v = veranstaltungen.get(position);
             Intent intent = new Intent(SelectListActivity.this, AttendanceCheckInActivity.class);
@@ -59,28 +66,28 @@ public class SelectListActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
+        // PDF-Import starten
         btnImportPdf.setOnClickListener(v -> {
             Intent intent = new Intent(SelectListActivity.this, AttendanceSheetImportActivity.class);
             startActivityForResult(intent, REQ_IMPORT_PDF);
         });
     }
 
+    /**
+     * Bottom Navigation konfigurieren.
+     */
     private void setupBottomNav() {
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
-
-
 
         bottomNav.setOnItemSelectedListener(item -> {
             int id = item.getItemId();
 
             if (id == R.id.nav_home) {
                 startActivity(new Intent(SelectListActivity.this, StartActivity.class));
-                overridePendingTransition(0, 0);
+                overridePendingTransition(0, 0);  // Keine Animation
                 finish();
                 return true;
             }
-
-
 
             if (id == R.id.nav_admin) {
                 startActivity(new Intent(SelectListActivity.this, AdminLoginActivity.class));
@@ -92,6 +99,10 @@ public class SelectListActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * Wird aufgerufen wenn der PDF-Import zurückkehrt.
+     * Bei Erfolg → Liste neu laden um die neue Veranstaltung anzuzeigen.
+     */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -100,6 +111,9 @@ public class SelectListActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Lädt alle Veranstaltungen von der API.
+     */
     private void loadVeranstaltungen() {
         ApiService api = ApiClient.getClient().create(ApiService.class);
 
@@ -112,6 +126,7 @@ public class SelectListActivity extends AppCompatActivity {
                 Log.d(TAG, "Response code: " + response.code());
 
                 if (response.isSuccessful() && response.body() != null) {
+                    // Listen leeren und neu befüllen
                     veranstaltungen.clear();
                     titles.clear();
 

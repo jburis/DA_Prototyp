@@ -2,6 +2,10 @@ package com.example.da_prototyp_ocr.model;
 
 import com.google.gson.annotations.SerializedName;
 
+/**
+ * Zentrale Datenklasse: Eine Buchung = ein Teilnehmer mit seinen gebuchten Plätzen.
+ * Kommt direkt von der API und wird überall in der App verwendet.
+ */
 public class Buchung {
 
     @SerializedName("buchung_id")
@@ -11,7 +15,7 @@ public class Buchung {
     private int veranstaltungId;
 
     @SerializedName("bestellnummer")
-    private String bestellnummer;
+    private String bestellnummer;  // z.B. "#98452" – wird für OCR-Matching verwendet
 
     @SerializedName("vorname")
     private String vorname;
@@ -20,14 +24,16 @@ public class Buchung {
     private String nachname;
 
     @SerializedName("kontakt")
-    private String kontakt;
+    private String kontakt;  // E-Mail-Adresse
 
     @SerializedName("anzahl_plaetze")
-    private int anzahlPlaetze;
+    private int anzahlPlaetze;  // Wie viele Plätze gebucht wurden
 
+    // Nicht von der API – wird lokal berechnet aus den Anwesenheiten
     private int checkedInCount;
 
-    // ===== get methoden =====
+    // ==================== Getter ====================
+
     public int getBuchungId() { return buchungId; }
     public int getVeranstaltungId() { return veranstaltungId; }
     public String getBestellnummer() { return bestellnummer; }
@@ -35,14 +41,17 @@ public class Buchung {
     public String getNachname() { return nachname; }
     public String getKontakt() { return kontakt; }
     public int getAnzahlPlaetze() { return anzahlPlaetze; }
-
     public int getCheckedInCount() { return checkedInCount; }
 
+    /**
+     * Gibt "Vorname Nachname" zurück – wird in der UI und beim QR-Matching verwendet.
+     */
     public String getDisplayName() {
         return (vorname == null ? "" : vorname) + " " + (nachname == null ? "" : nachname);
     }
 
-    // ===== set methoden =====
+    // ==================== Setter ====================
+
     public void setBuchungId(int buchungId) { this.buchungId = buchungId; }
     public void setVeranstaltungId(int veranstaltungId) { this.veranstaltungId = veranstaltungId; }
     public void setBestellnummer(String bestellnummer) { this.bestellnummer = bestellnummer; }
@@ -50,5 +59,10 @@ public class Buchung {
     public void setNachname(String nachname) { this.nachname = nachname; }
     public void setKontakt(String kontakt) { this.kontakt = kontakt; }
     public void setAnzahlPlaetze(int anzahlPlaetze) { this.anzahlPlaetze = anzahlPlaetze; }
+
+    /**
+     * Wird nach dem Laden der Anwesenheiten gesetzt.
+     * Zeigt wie viele der gebuchten Plätze bereits eingecheckt sind.
+     */
     public void setCheckedInCount(int checkedInCount) { this.checkedInCount = checkedInCount; }
 }

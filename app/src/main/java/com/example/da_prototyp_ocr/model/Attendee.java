@@ -1,37 +1,39 @@
-package com.example.da_prototyp_ocr.model; // Passen Sie das Paket an Ihr Projekt an
+package com.example.da_prototyp_ocr.model;
 
 import com.google.gson.annotations.SerializedName;
 import java.io.Serializable;
 
-// Serializable ist nützlich, wenn Sie das Objekt zwischen Activities übergeben möchten
+/**
+ * Älteres Teilnehmer-Model aus der ersten API-Version.
+ * Wird aktuell nicht mehr verwendet – stattdessen läuft alles über Buchung.
+ * Bleibt als Fallback falls die API sich nochmal ändert.
+ */
 public class Attendee implements Serializable {
 
-    // Wird von der API bei der Erstellung zurückgegeben
     @SerializedName("id")
     private Integer id;
 
     @SerializedName("participant")
-    private String participant;
+    private String participant;  // Name des Teilnehmers
 
-    // In JSON ist es "order_number", in Java verwenden wir camelCase
     @SerializedName("order_number")
-    private String orderNumber;
+    private String orderNumber;  // Bestellnummer
 
     @SerializedName("guest_count")
-    private int guestCount;
+    private int guestCount;  // Anzahl gebuchter Plätze
 
-    // Optionales Feld
     @SerializedName("contact")
-    private String contact;
+    private String contact;  // E-Mail oder Telefon
 
     @SerializedName("checked_in_count")
-    private int checkedInCount;
+    private int checkedInCount;  // Bereits eingecheckte Personen
 
-    // Wird von der Datenbank gesetzt, aber nützlich, es in der App zu haben
     @SerializedName("created_at")
-    private String createdAt;
+    private String createdAt;  // Zeitstempel der Erstellung
 
-    // Konstruktor zum Erstellen eines neuen Teilnehmers in der App
+    /**
+     * Konstruktor zum manuellen Erstellen eines Teilnehmers.
+     */
     public Attendee(String participant, String orderNumber, int guestCount, String contact) {
         this.participant = participant;
         this.orderNumber = orderNumber;
@@ -39,32 +41,12 @@ public class Attendee implements Serializable {
         this.contact = contact;
     }
 
-    // Getter und Setter (können bei Bedarf hinzugefügt werden)
-    public Integer getId() {
-        return id;
-    }
-
-    public String getParticipant() {
-        return participant;
-    }
-
-    public String getOrderNumber() {
-        return orderNumber;
-    }
-
-    public int getGuestCount() {
-        return guestCount;
-    }
-
-    public String getContact() {
-        return contact;
-    }
-
-    public int getCheckedInCount() {
-        return checkedInCount;
-    }
-
-    public String getCreatedAt() {
-        return createdAt;
-    }
+    // Getter
+    public Integer getId() { return id; }
+    public String getParticipant() { return participant; }
+    public String getOrderNumber() { return orderNumber; }
+    public int getGuestCount() { return guestCount; }
+    public String getContact() { return contact; }
+    public int getCheckedInCount() { return checkedInCount; }
+    public String getCreatedAt() { return createdAt; }
 }

@@ -21,30 +21,44 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Admin-Bereich zur Verwaltung von Veranstaltungen.
+ * Aktuell mit Mock-Daten – wird später mit der API verbunden.
+ *
+ * Funktionen:
+ * - Veranstaltungen sperren (orange markiert)
+ * - Gesperrte Events per E-Mail exportieren (blau markiert beim Auswählen)
+ * - Gesperrte Events löschen
+ *
+ * Farblogik:
+ * - Grün = aktuell ausgewählt
+ * - Orange = gesperrt
+ * - Blau = für Export ausgewählt (nur im Export-Modus)
+ */
 public class AdminAreaActivity extends AppCompatActivity {
 
     private ListView listViewEvents;
     private EditText etEmail, etSearch;
     private Button btnLockEvent, btnDeleteEvent, btnExportEvent, btnLogout;
 
-    private final List<String> allEvents = new ArrayList<>();
-    private final List<String> displayList = new ArrayList<>();
+    private final List<String> allEvents = new ArrayList<>();      // Alle Events
+    private final List<String> displayList = new ArrayList<>();    // Aktuell angezeigte (nach Filter)
     private ArrayAdapter<String> eventsAdapter;
 
     private String selectedEvent = null;
 
-    // Status-Listen für die Farben
-    private final Set<String> lockedEvents = new HashSet<>();   // Orange (Gesperrt)
-    private final Set<String> exportedEvents = new HashSet<>(); // Blau (Für Versand markiert)
+    // Status-Tracking für Farben
+    private final Set<String> lockedEvents = new HashSet<>();     // Gesperrte Events (orange)
+    private final Set<String> exportedEvents = new HashSet<>();   // Zum Export markiert (blau)
 
-    private boolean isExportMode = false;
+    private boolean isExportMode = false;  // Sind wir gerade im Export-Modus?
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_admin_area);
 
-        // UI Bindings
+        // UI-Elemente verbinden
         listViewEvents = findViewById(R.id.listViewEvents);
         etEmail = findViewById(R.id.etEmail);
         etSearch = findViewById(R.id.etSearch);
@@ -53,11 +67,11 @@ public class AdminAreaActivity extends AppCompatActivity {
         btnExportEvent = findViewById(R.id.btnExportEvent);
         btnLogout = findViewById(R.id.btnLogout);
 
-        // Initialer Zustand
+        // Löschen-Button anfangs deaktiviert (nur gesperrte Events löschbar)
         btnDeleteEvent.setEnabled(false);
         btnDeleteEvent.setAlpha(0.5f);
 
-        // Beispiel-Daten
+        // Mock-Daten (später durch API-Call ersetzen)
         allEvents.add("Senior:innenfest");
         allEvents.add("Ausflug Tiergarten");
         allEvents.add("Konzert im Park");
@@ -68,7 +82,7 @@ public class AdminAreaActivity extends AppCompatActivity {
 
         displayList.addAll(allEvents);
 
-        // Adapter steuert Farben SOFORT
+        // Adapter mit Custom-Farben je nach Status
         eventsAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, displayList) {
             @NonNull
             @Override
@@ -77,19 +91,18 @@ public class AdminAreaActivity extends AppCompatActivity {
                 String item = getItem(position);
 
                 if (item != null) {
-                    // 1. Im Export-Modus & gewählt -> BLAU
+                    // Priorität der Farben (von oben nach unten)
                     if (isExportMode && exportedEvents.contains(item)) {
+                        // Im Export-Modus und ausgewählt → Blau
                         view.setBackgroundColor(Color.parseColor("#BBDEFB"));
-                    }
-                    // 2. Aktuelle Auswahl -> GRÜN
-                    else if (item.equals(selectedEvent)) {
+                    } else if (item.equals(selectedEvent)) {
+                        // Aktuell angeklickt → Grün
                         view.setBackgroundColor(Color.parseColor("#C8E6C9"));
-                    }
-                    // 3. Gesperrt -> ORANGE
-                    else if (lockedEvents.contains(item)) {
+                    } else if (lockedEvents.contains(item)) {
+                        // Gesperrt → Orange
                         view.setBackgroundColor(Color.parseColor("#FFE0B2"));
-                    }
-                    else {
+                    } else {
+                        // Normal → Transparent
                         view.setBackgroundColor(Color.TRANSPARENT);
                     }
                 }
@@ -99,7 +112,7 @@ public class AdminAreaActivity extends AppCompatActivity {
 
         listViewEvents.setAdapter(eventsAdapter);
 
-        // Suche
+        // Suchfeld filtert die Liste live
         etSearch.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
@@ -108,11 +121,12 @@ public class AdminAreaActivity extends AppCompatActivity {
             @Override public void afterTextChanged(Editable s) {}
         });
 
-        // Klick-Logik für MEHRFACHAUSWAHL & SOFORTIGES BLAU
+        // Klick auf Event: Unterschiedliches Verhalten je nach Modus
         listViewEvents.setOnItemClickListener((parent, view, position, id) -> {
             String clickedItem = displayList.get(position);
 
             if (isExportMode) {
+                // Export-Modus: Mehrfachauswahl für gesperrte Events (toggle blau)
                 if (lockedEvents.contains(clickedItem)) {
                     if (exportedEvents.contains(clickedItem)) {
                         exportedEvents.remove(clickedItem);
@@ -121,6 +135,7 @@ public class AdminAreaActivity extends AppCompatActivity {
                     }
                 }
             } else {
+                // Normal-Modus: Einzelauswahl
                 selectedEvent = clickedItem;
             }
 
@@ -128,7 +143,7 @@ public class AdminAreaActivity extends AppCompatActivity {
             updateButtonStates();
         });
 
-        // Sperren
+        // Event sperren (wird orange)
         btnLockEvent.setOnClickListener(v -> {
             if (selectedEvent == null) {
                 toast("Wähle ein Event!");
@@ -139,7 +154,7 @@ public class AdminAreaActivity extends AppCompatActivity {
             updateButtonStates();
         });
 
-        // Export & E-Mail Validierung
+        // Export-Button: Wechselt zwischen zwei Modi
         btnExportEvent.setOnClickListener(v -> {
             if (lockedEvents.isEmpty() && !isExportMode) {
                 toast("Keine gesperrten Events!");
@@ -147,6 +162,7 @@ public class AdminAreaActivity extends AppCompatActivity {
             }
 
             if (!isExportMode) {
+                // In Export-Modus wechseln: Nur gesperrte Events anzeigen
                 isExportMode = true;
                 displayList.clear();
                 displayList.addAll(lockedEvents);
@@ -157,13 +173,13 @@ public class AdminAreaActivity extends AppCompatActivity {
                 selectedEvent = null;
                 toast("Wähle jetzt Events (Blau) für den Export.");
             } else {
-                // PRÜFUNG: Ist eine E-Mail eingeben?
+                // Versenden: E-Mail validieren und abschicken
                 String email = etEmail.getText().toString().trim();
 
                 if (email.isEmpty() || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
                     toast("Bitte gib zuerst eine gültige E-Mail-Adresse ein!");
-                    etEmail.requestFocus(); // Cursor ins E-Mail Feld setzen
-                    return; // Abbrechen, kein Senden möglich
+                    etEmail.requestFocus();
+                    return;
                 }
 
                 if (exportedEvents.isEmpty()) {
@@ -171,10 +187,10 @@ public class AdminAreaActivity extends AppCompatActivity {
                     return;
                 }
 
-                // Erfolg: Senden simulieren
+                // Erfolg (hier später echter E-Mail-Versand)
                 toast(exportedEvents.size() + " Events an " + email + " versendet.");
 
-                // Modus beenden & zurücksetzen
+                // Zurück zum Normal-Modus
                 isExportMode = false;
                 displayList.clear();
                 displayList.addAll(allEvents);
@@ -187,7 +203,7 @@ public class AdminAreaActivity extends AppCompatActivity {
             eventsAdapter.notifyDataSetChanged();
         });
 
-        // Löschen
+        // Event löschen (nur wenn gesperrt)
         btnDeleteEvent.setOnClickListener(v -> {
             if (selectedEvent != null && lockedEvents.contains(selectedEvent)) {
                 allEvents.remove(selectedEvent);
@@ -205,6 +221,9 @@ public class AdminAreaActivity extends AppCompatActivity {
         btnLogout.setOnClickListener(v -> finish());
     }
 
+    /**
+     * Aktualisiert den Löschen-Button: Nur aktiv wenn ein gesperrtes Event ausgewählt ist.
+     */
     private void updateButtonStates() {
         boolean canDelete = selectedEvent != null && lockedEvents.contains(selectedEvent);
         btnDeleteEvent.setEnabled(canDelete);
