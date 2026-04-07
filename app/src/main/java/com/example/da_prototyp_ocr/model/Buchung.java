@@ -25,10 +25,9 @@ public class Buchung {
     @SerializedName("anzahl_plaetze")
     private int anzahlPlaetze;
 
-    // NICHT von der API geliefert: berechnen wir clientseitig
     private int checkedInCount;
 
-    // ===== GETTERS =====
+    // ===== get methoden =====
     public int getBuchungId() { return buchungId; }
     public int getVeranstaltungId() { return veranstaltungId; }
     public String getBestellnummer() { return bestellnummer; }
@@ -43,7 +42,7 @@ public class Buchung {
         return (vorname == null ? "" : vorname) + " " + (nachname == null ? "" : nachname);
     }
 
-    // ===== SETTERS (needed for creating new Buchung) =====
+    // ===== set methoden =====
     public void setBuchungId(int buchungId) { this.buchungId = buchungId; }
     public void setVeranstaltungId(int veranstaltungId) { this.veranstaltungId = veranstaltungId; }
     public void setBestellnummer(String bestellnummer) { this.bestellnummer = bestellnummer; }
