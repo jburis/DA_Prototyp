@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
 }
@@ -14,6 +16,19 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Token aus local.properties laden
+        val localProperties = Properties()
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localProperties.load(localPropertiesFile.inputStream())
+        }
+
+        buildConfigField(
+            "String",
+            "ADMIN_TOKEN",
+            "\"${localProperties.getProperty("ADMIN_TOKEN", "")}\""
+        )
     }
 
     buildTypes {
@@ -29,6 +44,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
+    buildFeatures {
+        buildConfig = true
+    }
 }
 
 val camerax_version = "1.3.4"
@@ -39,9 +58,8 @@ dependencies {
     // Retrofit für Netzwerkanfragen
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
 
-// Gson-Converter, um JSON automatisch in Java/Kotlin-Objekte umzuwandeln
+    // Gson-Converter, um JSON automatisch in Java/Kotlin-Objekte umzuwandeln
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
-
 
     // CameraX
     implementation("androidx.camera:camera-core:$camerax_version")
